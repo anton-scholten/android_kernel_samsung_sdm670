@@ -81,6 +81,19 @@ extern "C" {
 #define  DRM_MODE_FLAG_SUPPORTS_YUV422		(1<<21)
 #define  DRM_MODE_FLAG_SUPPORTS_YUV420		(1<<22)
 
+/* Picture aspect ratio options */
+#define DRM_MODE_PICTURE_ASPECT_NONE		0
+#define DRM_MODE_PICTURE_ASPECT_4_3		1
+#define DRM_MODE_PICTURE_ASPECT_16_9		2
+
+/* Aspect ratio flag bitmask (4 bits 22:19) */
+#define DRM_MODE_FLAG_PIC_AR_MASK		(0x0F<<19)
+#define  DRM_MODE_FLAG_PIC_AR_NONE \
+			(DRM_MODE_PICTURE_ASPECT_NONE<<19)
+#define  DRM_MODE_FLAG_PIC_AR_4_3 \
+			(DRM_MODE_PICTURE_ASPECT_4_3<<19)
+#define  DRM_MODE_FLAG_PIC_AR_16_9 \
+			(DRM_MODE_PICTURE_ASPECT_16_9<<19)
 
 /* Picture aspect ratio options */
 #define DRM_MODE_PICTURE_ASPECT_NONE		0
