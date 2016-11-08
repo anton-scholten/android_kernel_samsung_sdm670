@@ -70,6 +70,9 @@ struct ipv6_devconf {
 	__s32		accept_ra_prefix_route;
 	__s32		seg6_enabled;
 	__u32		addr_gen_mode;
+#ifdef CONFIG_IPV6_SEG6_HMAC
+        __s32           seg6_require_hmac;
+#endif
 
 	struct ctl_table_header *sysctl_header;
 };
