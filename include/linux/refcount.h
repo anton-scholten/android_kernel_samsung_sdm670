@@ -206,10 +206,7 @@ void refcount_dec(refcount_t *r)
  * operations.
  */
 static inline __refcount_check
-bool refcount_dec_if_one(refcount_t *r)
-{
-	return atomic_cmpxchg_release(&r->refs, 1, 0) == 1;
-}
+bool refcount_dec_if_one(refcount_t *r);
 
 /*
  * No atomic_t counterpart, it decrements unless the value is 1, in which case
@@ -218,32 +215,7 @@ bool refcount_dec_if_one(refcount_t *r)
  * Was often done like: atomic_add_unless(&var, -1, 1)
  */
 static inline __refcount_check
-bool refcount_dec_not_one(refcount_t *r)
-{
-	unsigned int old, new, val = atomic_read(&r->refs);
-
-	for (;;) {
-		if (unlikely(val == UINT_MAX))
-			return true;
-
-		if (val == 1)
-			return false;
-
-		new = val - 1;
-		if (new > val) {
-			REFCOUNT_WARN(new > val, "refcount_t: underflow; use-after-free.\n");
-			return true;
-		}
-
-		old = atomic_cmpxchg_release(&r->refs, val, new);
-		if (old == val)
-			break;
-
-		val = old;
-	}
-
-	return true;
-}
+bool refcount_dec_not_one(refcount_t *r);
 
 /*
  * Similar to atomic_dec_and_mutex_lock(), it will WARN on underflow and fail
@@ -254,19 +226,7 @@ bool refcount_dec_not_one(refcount_t *r)
  * See the comment on top.
  */
 static inline __refcount_check
-bool refcount_dec_and_mutex_lock(refcount_t *r, struct mutex *lock)
-{
-	if (refcount_dec_not_one(r))
-		return false;
-
-	mutex_lock(lock);
-	if (!refcount_dec_and_test(r)) {
-		mutex_unlock(lock);
-		return false;
-	}
-
-	return true;
-}
+bool refcount_dec_and_mutex_lock(refcount_t *r, struct mutex *lock);
 
 /*
  * Similar to atomic_dec_and_lock(), it will WARN on underflow and fail to
@@ -277,18 +237,6 @@ bool refcount_dec_and_mutex_lock(refcount_t *r, struct mutex *lock)
  * See the comment on top.
  */
 static inline __refcount_check
-bool refcount_dec_and_lock(refcount_t *r, spinlock_t *lock)
-{
-	if (refcount_dec_not_one(r))
-		return false;
-
-	spin_lock(lock);
-	if (!refcount_dec_and_test(r)) {
-		spin_unlock(lock);
-		return false;
-	}
-
-	return true;
-}
+bool refcount_dec_and_lock(refcount_t *r, spinlock_t *lock);
 
 #endif /* _LINUX_REFCOUNT_H */
