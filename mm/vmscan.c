@@ -2414,80 +2414,77 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 	fraction[1] = fp;
 	denominator = ap + fp + 1;
 out:
-		*lru_pages = 0;
-		for_each_evictable_lru(lru) {
-			int file = is_file_lru(lru);
-			unsigned long lruvec_size;
-			unsigned long low, min;
-			unsigned long scan;
+	*lru_pages = 0;
+	for_each_evictable_lru(lru) {
+		int file = is_file_lru(lru);
+		unsigned long lruvec_size;
+		unsigned long low, min;
+		unsigned long scan;
 
-			lruvec_size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
-			mem_cgroup_protection(sc->target_mem_cgroup, memcg,
-					      &min, &low);
+		lruvec_size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
+		mem_cgroup_protection(sc->target_mem_cgroup, memcg,
+				      &min, &low);
 
-			if (min || low) {
-				unsigned long cgroup_size = mem_cgroup_size(memcg);
-				unsigned long protection;
+		if (min || low) {
+			unsigned long cgroup_size = mem_cgroup_size(memcg);
+			unsigned long protection;
 
-				/* Retry with full pressure before OOM. */
-				if (!sc->memcg_low_reclaim && low > min) {
-					protection = low;
-					sc->memcg_low_skipped = 1;
-				} else {
-					protection = min;
-				}
-
-				/*
-				 * Reduce scan pressure by the protected
-				 * fraction. During low reclaim only
-				 * memory.min remains protected.
-				 */
-				cgroup_size = max(cgroup_size, protection);
-				scan = lruvec_size - lruvec_size * protection /
-					(cgroup_size + 1);
-
-				/* Keep reclaim progressing at this priority. */
-				scan = max(scan, SWAP_CLUSTER_MAX);
+			/* Retry with full pressure before OOM. */
+			if (!sc->memcg_low_reclaim && low > min) {
+				protection = low;
+				sc->memcg_low_skipped = 1;
 			} else {
-				scan = lruvec_size;
+				protection = min;
 			}
-
-			scan >>= sc->priority;
 
 			/*
-			 * If the cgroup's already been deleted, make sure to
-			 * scrape out the remaining cache.
+			 * Reduce scan pressure by the protected
+			 * fraction. During low reclaim only
+			 * memory.min remains protected.
 			 */
-			if (!scan && !mem_cgroup_online(memcg))
-				scan = min(lruvec_size, SWAP_CLUSTER_MAX);
+			cgroup_size = max(cgroup_size, protection);
+			scan = lruvec_size - lruvec_size * protection /
+				(cgroup_size + 1);
 
-			switch (scan_balance) {
-			case SCAN_EQUAL:
-				/* Scan lists relative to size */
-				break;
-			case SCAN_FRACT:
-				/*
-				 * Scan types proportional to swappiness and
-				 * their relative recent reclaim efficiency.
-				 */
-				scan = div64_u64(scan * fraction[file],
-						 denominator);
-				break;
-			case SCAN_FILE:
-			case SCAN_ANON:
-				/* Scan one type exclusively */
-				if ((scan_balance == SCAN_FILE) != file) {
-					lruvec_size = 0;
-					scan = 0;
-				}
-				break;
-			default:
-				/* Look ma, no brain */
-				BUG();
+			/* Keep reclaim progressing at this priority. */
+			scan = max(scan, SWAP_CLUSTER_MAX);
+		} else {
+			scan = lruvec_size;
+		}
+
+		scan >>= sc->priority;
+
+		/* Scrape out any cache left in deleted cgroups. */
+		if (!scan && !mem_cgroup_online(memcg))
+			scan = min(lruvec_size, SWAP_CLUSTER_MAX);
+
+		switch (scan_balance) {
+		case SCAN_EQUAL:
+			/* Scan lists relative to size */
+			break;
+		case SCAN_FRACT:
+			/*
+			 * Scan types proportional to swappiness and
+			 * their relative recent reclaim efficiency.
+			 */
+			scan = div64_u64(scan * fraction[file],
+					 denominator);
+			break;
+		case SCAN_FILE:
+		case SCAN_ANON:
+			/* Scan one type exclusively */
+			if ((scan_balance == SCAN_FILE) != file) {
+				lruvec_size = 0;
+				scan = 0;
 			}
+			break;
+		default:
+			/* Look ma, no brain */
+			BUG();
+		}
 
-			*lru_pages += lruvec_size;
-			nr[lru] = scan;
+		*lru_pages += lruvec_size;
+		nr[lru] = scan;
 	}
 }
 
