@@ -235,6 +235,9 @@ config FORTIFY_COMPILE_CHECK
 	  of fortify source. Selecting this option will not enforce compile
 	  time size check for string functions.
 
+config ARCH_HAS_SET_MEMORY
+	bool
+
 # Select if arch init_task initializer is different to init/init_task.c
 config ARCH_INIT_TASK
        bool
