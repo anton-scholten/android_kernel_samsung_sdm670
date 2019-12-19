@@ -110,3 +110,11 @@ SCHED_FEAT(FBT_STRICT_ORDER, false)
  * OFF: schedtune.prefer_idle is honored as is.
  */
 SCHED_FEAT(EAS_USE_NEED_IDLE, true)
+
+#ifdef CONFIG_SCHED_EMS
+SCHED_FEAT(EXYNOS_MS, true)
+#else
+SCHED_FEAT(EXYNOS_MS, false)
+#endif
+/* Preserve Android's opt-in policy for boosting all real-time tasks. */
+SCHED_FEAT(SUGOV_RT_MAX_FREQ, false)
