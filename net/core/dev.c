@@ -7314,8 +7314,6 @@ static int dev_xdp_attach(struct net_device *dev,
 		return -EBUSY;
 	if ((flags & XDP_FLAGS_REPLACE) && cur_prog != old_prog)
 		return -EEXIST;
-	if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) && cur_prog)
-		return -EBUSY;
 
 	if (link)
 		new_prog = link->link.prog;
@@ -7325,6 +7323,8 @@ static int dev_xdp_attach(struct net_device *dev,
 		enum bpf_xdp_mode other_mode = mode == XDP_MODE_SKB ?
 			XDP_MODE_DRV : XDP_MODE_SKB;
 
+		if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) && cur_prog)
+			return -EBUSY;
 		if (!offload && dev_xdp_prog(dev, other_mode))
 			return -EEXIST;
 		if (new_prog->expected_attach_type == BPF_XDP_DEVMAP ||
