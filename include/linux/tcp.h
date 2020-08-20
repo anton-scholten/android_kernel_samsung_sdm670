@@ -388,7 +388,7 @@ struct tcp_sock {
 	 * socket. Used to retransmit SYNACKs etc.
 	 */
 	struct request_sock *fastopen_rsk;
-	u32	*saved_syn;
+	struct saved_syn *saved_syn;
 };
 
 enum tsq_enum {
@@ -463,6 +463,11 @@ static inline void tcp_saved_syn_free(struct tcp_sock *tp)
 {
 	kfree(tp->saved_syn);
 	tp->saved_syn = NULL;
+}
+
+static inline u32 tcp_saved_syn_len(const struct saved_syn *saved_syn)
+{
+	return saved_syn->network_hdrlen + saved_syn->tcp_hdrlen;
 }
 
 int tcp_skb_shift(struct sk_buff *to, struct sk_buff *from, int pcount,
