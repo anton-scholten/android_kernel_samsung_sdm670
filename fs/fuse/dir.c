@@ -1007,6 +1007,10 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 	FUSE_ARGS(args);
 	u64 attr_version;
 
+#ifdef CONFIG_FUSE_BPF
+	if (get_fuse_inode(inode)->backing_inode)
+		return -EOPNOTSUPP;
+#endif
 	attr_version = fuse_get_attr_version(fc);
 
 	memset(&inarg, 0, sizeof(inarg));
@@ -1177,6 +1181,10 @@ static int fuse_access(struct inode *inode, int mask)
 
 	BUG_ON(mask & MAY_NOT_BLOCK);
 
+#ifdef CONFIG_FUSE_BPF
+	if (get_fuse_inode(inode)->backing_inode)
+		return -EOPNOTSUPP;
+#endif
 	if (fc->no_access)
 		return 0;
 
@@ -1220,6 +1228,10 @@ static int fuse_perm_getattr(struct inode *inode, int mask)
 static int fuse_permission(struct inode *inode, int mask)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
+#ifdef CONFIG_FUSE_BPF
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_err_ret fer;
+#endif
 	bool refreshed = false;
 	int err = 0;
 
@@ -1228,6 +1240,20 @@ static int fuse_permission(struct inode *inode, int mask)
 
 	if (!fuse_allow_current_process(fc))
 		return -EACCES;
+
+#ifdef CONFIG_FUSE_BPF
+	if (fi->backing_inode) {
+		if (mask & MAY_NOT_BLOCK)
+			return -ECHILD;
+		fer = fuse_bpf_backing(inode, struct fuse_access_io,
+				       fuse_access_initialize,
+				       fuse_access_backing,
+				       fuse_access_finalize, inode, mask);
+		if (fer.ret)
+			return PTR_ERR_OR_ZERO(fer.result);
+		return -EOPNOTSUPP;
+	}
+#endif
 
 	/*
 	 * If attributes are needed, refresh them before proceeding
@@ -1891,12 +1917,32 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 {
 	struct inode *inode = d_inode(entry);
 	struct fuse_conn *fc = get_fuse_conn(inode);
+#ifdef CONFIG_FUSE_BPF
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_err_ret fer;
+	u64 attr_version;
+#endif
 
 	if (fuse_is_bad(inode))
 		return -EIO;
 
 	if (!fuse_allow_current_process(fc))
 		return -EACCES;
+
+#ifdef CONFIG_FUSE_BPF
+	if (fi->backing_inode) {
+		attr_version = fuse_get_attr_version(fc);
+		fer = fuse_bpf_backing(inode, struct fuse_getattr_io,
+				       fuse_getattr_initialize,
+				       fuse_getattr_backing,
+				       fuse_getattr_finalize, inode, path,
+				       stat, request_mask, flags,
+				       attr_version);
+		if (fer.ret)
+			return PTR_ERR_OR_ZERO(fer.result);
+		return -EOPNOTSUPP;
+	}
+#endif
 
 	return fuse_update_attributes(inode, stat, NULL, NULL);
 }
