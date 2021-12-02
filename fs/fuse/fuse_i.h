@@ -87,7 +87,7 @@ static inline void get_fuse_backing_path(const struct dentry *entry,
 {
 	struct fuse_dentry *fd = get_fuse_dentry(entry);
 
-	if (!fd) {
+	if (!fd || !fd->backing_path.dentry || !fd->backing_path.mnt) {
 		*path = (struct path) { };
 		return;
 	}
@@ -1181,6 +1181,8 @@ int fuse_bpf_prepare_postfilter(struct fuse_bpf_args *args);
 int fuse_bpf_restore_outputs(struct fuse_bpf_args *args,
 			     const struct fuse_bpf_args *backup);
 int fuse_bpf_run_filter(struct bpf_prog *prog, struct fuse_bpf_args *args);
+struct bpf_prog *fuse_bpf_get_prog(struct fuse_conn *fc,
+				   struct fuse_inode *fi);
 ssize_t fuse_bpf_simple_request(struct fuse_conn *fc,
 				struct fuse_bpf_args *args);
 
@@ -1244,6 +1246,7 @@ void *fuse_release_finalize(struct fuse_bpf_args *args,
 	struct fuse_err_ret __fuse_bpf_fer = { }; \
 	struct fuse_bpf_args __fuse_bpf_args = { }; \
 	struct fuse_bpf_args __fuse_bpf_backup = { }; \
+	struct bpf_prog *__fuse_bpf_prog = NULL; \
 	io __fuse_bpf_io = { }; \
 	bool __fuse_bpf_initialized = false; \
 	bool __fuse_bpf_locked; \
@@ -1255,6 +1258,8 @@ void *fuse_release_finalize(struct fuse_bpf_args *args,
 	do { \
 		if (!__fuse_bpf_fi || !__fuse_bpf_fi->backing_inode) \
 			break; \
+		__fuse_bpf_prog = fuse_bpf_get_prog(__fuse_bpf_fc, \
+						   __fuse_bpf_fi); \
 		\
 		__fuse_bpf_ret = initialize(&__fuse_bpf_args, \
 					    &__fuse_bpf_io, args); \
@@ -1274,8 +1279,8 @@ void *fuse_release_finalize(struct fuse_bpf_args *args,
 			break; \
 		} \
 		\
-		__fuse_bpf_ext_flags = __fuse_bpf_fi->bpf ? \
-			fuse_bpf_run_filter(__fuse_bpf_fi->bpf, \
+		__fuse_bpf_ext_flags = __fuse_bpf_prog ? \
+			fuse_bpf_run_filter(__fuse_bpf_prog, \
 					    &__fuse_bpf_args) : \
 			FUSE_BPF_BACKING; \
 		if (__fuse_bpf_ext_flags < 0) { \
@@ -1288,6 +1293,15 @@ void *fuse_release_finalize(struct fuse_bpf_args *args,
 		} \
 		\
 		if (__fuse_bpf_ext_flags & FUSE_BPF_USER_FILTER) { \
+			if (!__fuse_bpf_args.nodeid) { \
+				__fuse_bpf_ret = -EOPNOTSUPP; \
+				__fuse_bpf_args.error_in = \
+					__fuse_bpf_ret; \
+				__fuse_bpf_fer.result = \
+					ERR_PTR(__fuse_bpf_ret); \
+				__fuse_bpf_fer.ret = true; \
+				break; \
+			} \
 			__fuse_bpf_locked = \
 				fuse_lock_inode(__fuse_bpf_inode); \
 			__fuse_bpf_res = fuse_bpf_simple_request( \
@@ -1333,7 +1347,7 @@ void *fuse_release_finalize(struct fuse_bpf_args *args,
 		} \
 		\
 		__fuse_bpf_ext_flags = fuse_bpf_run_filter( \
-			__fuse_bpf_fi->bpf, &__fuse_bpf_args); \
+			__fuse_bpf_prog, &__fuse_bpf_args); \
 		if (__fuse_bpf_ext_flags < 0) { \
 			__fuse_bpf_fer.result = \
 				ERR_PTR(__fuse_bpf_ext_flags); \
@@ -1343,6 +1357,12 @@ void *fuse_release_finalize(struct fuse_bpf_args *args,
 		} \
 		if (!(__fuse_bpf_ext_flags & FUSE_BPF_USER_FILTER)) \
 			break; \
+		if (!__fuse_bpf_args.nodeid) { \
+			__fuse_bpf_ret = -EOPNOTSUPP; \
+			__fuse_bpf_args.error_in = __fuse_bpf_ret; \
+			__fuse_bpf_fer.result = ERR_PTR(__fuse_bpf_ret); \
+			break; \
+		} \
 		\
 		__fuse_bpf_ret = fuse_bpf_restore_outputs( \
 			&__fuse_bpf_args, &__fuse_bpf_backup); \
@@ -1367,6 +1387,8 @@ void *fuse_release_finalize(struct fuse_bpf_args *args,
 		if (__fuse_bpf_final) \
 			__fuse_bpf_fer.result = __fuse_bpf_final; \
 	} \
+	if (__fuse_bpf_prog) \
+		bpf_prog_put(__fuse_bpf_prog); \
 	__fuse_bpf_fer; \
 })
 #endif /* CONFIG_FUSE_BPF */
