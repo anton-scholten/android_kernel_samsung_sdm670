@@ -2377,7 +2377,7 @@ static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
 	ff->passthrough_enabled = 0;
 #ifdef CONFIG_FUSE_BPF
 	if (fuse_file_has_backing(file))
-		return -ENODEV;
+		return fuse_backing_mmap(file, vma);
 #endif
 
 	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
@@ -2395,7 +2395,7 @@ static int fuse_direct_mmap(struct file *file, struct vm_area_struct *vma)
 	ff->passthrough_enabled = 0;
 #ifdef CONFIG_FUSE_BPF
 	if (fuse_file_has_backing(file))
-		return -ENODEV;
+		return fuse_backing_mmap(file, vma);
 #endif
 
 	/* Can't provide the coherency needed for MAP_SHARED */
