@@ -84,8 +84,26 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 	return ff;
 }
 
+#ifdef CONFIG_FUSE_BPF
+void fuse_file_release_backing(struct fuse_file *ff)
+{
+	struct file *file;
+
+	if (!ff)
+		return;
+
+	file = ff->backing_file;
+	ff->backing_file = NULL;
+	if (file && !IS_ERR(file))
+		fput(file);
+}
+#endif
+
 void fuse_file_free(struct fuse_file *ff)
 {
+#ifdef CONFIG_FUSE_BPF
+	fuse_file_release_backing(ff);
+#endif
 	fuse_request_free(ff->reserved_req);
 	kfree(ff);
 }
@@ -105,6 +123,13 @@ static void fuse_file_put(struct fuse_file *ff, bool sync)
 {
 	if (atomic_dec_and_test(&ff->count)) {
 		struct fuse_req *req = ff->reserved_req;
+
+#ifdef CONFIG_FUSE_BPF
+		if (ff->is_backing) {
+			fuse_file_free(ff);
+			return;
+		}
+#endif
 
 		if (ff->fc->no_open) {
 			/*
@@ -128,6 +153,13 @@ static void fuse_file_put(struct fuse_file *ff, bool sync)
 		kfree(ff);
 	}
 }
+
+#ifdef CONFIG_FUSE_BPF
+void fuse_file_put_backing(struct fuse_file *ff)
+{
+	fuse_file_put(ff, false);
+}
+#endif
 
 int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 		 bool isdir)
@@ -229,6 +261,20 @@ int fuse_open_common(struct inode *inode, struct file *file, bool isdir)
 	if (err)
 		return err;
 
+#ifdef CONFIG_FUSE_BPF
+	{
+		struct fuse_err_ret result;
+
+		result = fuse_bpf_backing(inode, struct fuse_open_io,
+					  fuse_open_initialize,
+					  fuse_open_backing,
+					  fuse_open_finalize,
+					  inode, file, isdir);
+		if (result.ret)
+			return PTR_ERR(result.result);
+	}
+#endif
+
 	if (is_wb_truncate) {
 		inode_lock(inode);
 		fuse_set_nowrite(inode);
@@ -280,6 +326,24 @@ void fuse_release_common(struct file *file, int opcode)
 		return;
 
 	fuse_passthrough_release(ff);
+#ifdef CONFIG_FUSE_BPF
+	if (ff->is_backing) {
+		struct fuse_err_ret result;
+
+		result = fuse_bpf_backing(file_inode(file),
+					  struct fuse_release_in,
+					  fuse_release_initialize,
+					  fuse_release_backing,
+					  fuse_release_finalize,
+					  file_inode(file), file, opcode);
+		if (file->private_data == ff) {
+			file->private_data = NULL;
+			fuse_file_put_backing(ff);
+		}
+		(void)result;
+		return;
+	}
+#endif
 
 	req = ff->reserved_req;
 	fuse_prepare_release(ff, file->f_flags, opcode);
@@ -327,6 +391,12 @@ static int fuse_release(struct inode *inode, struct file *file)
 void fuse_sync_release(struct fuse_file *ff, int flags)
 {
 	WARN_ON(atomic_read(&ff->count) > 1);
+#ifdef CONFIG_FUSE_BPF
+	if (ff->is_backing) {
+		fuse_file_free(ff);
+		return;
+	}
+#endif
 	fuse_prepare_release(ff, flags, FUSE_RELEASE);
 	__set_bit(FR_FORCE, &ff->reserved_req->flags);
 	__clear_bit(FR_BACKGROUND, &ff->reserved_req->flags);
