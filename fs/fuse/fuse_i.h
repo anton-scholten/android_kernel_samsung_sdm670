@@ -1240,6 +1240,7 @@ int fuse_revalidate_backing(struct dentry *entry, unsigned int flags);
 		__fuse_bpf_ret = fuse_bpf_prepare_prefilter( \
 			&__fuse_bpf_args, &__fuse_bpf_backup); \
 		if (__fuse_bpf_ret) { \
+			__fuse_bpf_args.error_in = __fuse_bpf_ret; \
 			__fuse_bpf_fer.result = ERR_PTR(__fuse_bpf_ret); \
 			__fuse_bpf_fer.ret = true; \
 			break; \
@@ -1252,6 +1253,8 @@ int fuse_revalidate_backing(struct dentry *entry, unsigned int flags);
 		if (__fuse_bpf_ext_flags < 0) { \
 			__fuse_bpf_fer.result = \
 				ERR_PTR(__fuse_bpf_ext_flags); \
+			__fuse_bpf_args.error_in = \
+				__fuse_bpf_ext_flags; \
 			__fuse_bpf_fer.ret = true; \
 			break; \
 		} \
@@ -1266,6 +1269,7 @@ int fuse_revalidate_backing(struct dentry *entry, unsigned int flags);
 			if (__fuse_bpf_res < 0) { \
 				__fuse_bpf_fer.result = \
 					ERR_PTR(__fuse_bpf_res); \
+				__fuse_bpf_args.error_in = __fuse_bpf_res; \
 				__fuse_bpf_fer.ret = true; \
 				break; \
 			} \
@@ -1277,6 +1281,7 @@ int fuse_revalidate_backing(struct dentry *entry, unsigned int flags);
 		__fuse_bpf_ret = fuse_bpf_prepare_backing( \
 			&__fuse_bpf_args, &__fuse_bpf_backup); \
 		if (__fuse_bpf_ret) { \
+			__fuse_bpf_args.error_in = __fuse_bpf_ret; \
 			__fuse_bpf_fer.result = ERR_PTR(__fuse_bpf_ret); \
 			__fuse_bpf_fer.ret = true; \
 			break; \
@@ -1294,6 +1299,7 @@ int fuse_revalidate_backing(struct dentry *entry, unsigned int flags);
 		__fuse_bpf_ret = \
 			fuse_bpf_prepare_postfilter(&__fuse_bpf_args); \
 		if (__fuse_bpf_ret) { \
+			__fuse_bpf_args.error_in = __fuse_bpf_ret; \
 			__fuse_bpf_fer.result = ERR_PTR(__fuse_bpf_ret); \
 			break; \
 		} \
@@ -1303,6 +1309,8 @@ int fuse_revalidate_backing(struct dentry *entry, unsigned int flags);
 		if (__fuse_bpf_ext_flags < 0) { \
 			__fuse_bpf_fer.result = \
 				ERR_PTR(__fuse_bpf_ext_flags); \
+			__fuse_bpf_args.error_in = \
+				__fuse_bpf_ext_flags; \
 			break; \
 		} \
 		if (!(__fuse_bpf_ext_flags & FUSE_BPF_USER_FILTER)) \
@@ -1311,6 +1319,7 @@ int fuse_revalidate_backing(struct dentry *entry, unsigned int flags);
 		__fuse_bpf_ret = fuse_bpf_restore_outputs( \
 			&__fuse_bpf_args, &__fuse_bpf_backup); \
 		if (__fuse_bpf_ret) { \
+			__fuse_bpf_args.error_in = __fuse_bpf_ret; \
 			__fuse_bpf_fer.result = ERR_PTR(__fuse_bpf_ret); \
 			break; \
 		} \
@@ -1319,8 +1328,10 @@ int fuse_revalidate_backing(struct dentry *entry, unsigned int flags);
 			__fuse_bpf_fc, &__fuse_bpf_args); \
 		fuse_unlock_inode(__fuse_bpf_inode, \
 				  __fuse_bpf_locked); \
-		if (__fuse_bpf_res < 0) \
+		if (__fuse_bpf_res < 0) { \
 			__fuse_bpf_fer.result = ERR_PTR(__fuse_bpf_res); \
+			__fuse_bpf_args.error_in = __fuse_bpf_res; \
+		} \
 	} while (false); \
 	\
 	if (__fuse_bpf_initialized && __fuse_bpf_fer.ret) { \
