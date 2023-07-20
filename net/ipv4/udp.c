@@ -521,6 +521,10 @@ static struct sock *udp4_lib_lookup2(struct net *net,
 			}
 			result = reuseport_result ? : sk;
 			badness = score;
+			if (reuseport_result && !IS_ERR(reuseport_result))
+				badness = compute_score(reuseport_result, net, saddr,
+							sport, daddr, hnum, dif, sdif,
+							exact_dif);
 		} else if (score == badness && reuseport) {
 			matches++;
 			if (reciprocal_scale(hash, matches) == 0)
@@ -641,6 +645,10 @@ begin:
 			}
 			result = reuseport_result ? : sk;
 			badness = score;
+			if (reuseport_result && !IS_ERR(reuseport_result))
+				badness = compute_score(reuseport_result, net, saddr,
+							sport, daddr, hnum, dif, sdif,
+							exact_dif);
 		} else if (score == badness && reuseport) {
 			matches++;
 			if (reciprocal_scale(hash, matches) == 0)
