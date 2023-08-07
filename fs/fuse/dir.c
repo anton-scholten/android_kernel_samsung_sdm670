@@ -920,6 +920,29 @@ static int fuse_bpf_rollback_create(const struct path *parent_path,
 	return ret;
 }
 
+static int fuse_bpf_transfer_create_prog(struct inode *dir,
+					 struct dentry *entry,
+					 struct inode *inode)
+{
+	struct fuse_dentry *entry_data = get_fuse_dentry(entry);
+	struct fuse_conn *fc = get_fuse_conn(dir);
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct bpf_prog *new_prog;
+	struct bpf_prog *old_prog;
+
+	if (!entry_data)
+		return -EIO;
+
+	new_prog = fuse_take_dentry_bpf(entry_data);
+	spin_lock(&fc->lock);
+	old_prog = fi->bpf;
+	fi->bpf = new_prog;
+	spin_unlock(&fc->lock);
+	if (old_prog)
+		bpf_prog_put(old_prog);
+	return 0;
+}
+
 static int fuse_bpf_finish_create(struct inode *dir, struct dentry *entry,
 				  const struct path *parent_path,
 				  const struct path *child_path,
@@ -927,7 +950,6 @@ static int fuse_bpf_finish_create(struct inode *dir, struct dentry *entry,
 {
 	struct inode *backing_dir = d_inode(parent_path->dentry);
 	struct inode *backing_inode = d_inode(child_path->dentry);
-	struct fuse_entry_bpf bpf_entry = { };
 	struct inode *inode;
 	int ret;
 
@@ -940,8 +962,7 @@ static int fuse_bpf_finish_create(struct inode *dir, struct dentry *entry,
 				  child_path->mnt);
 	if (!inode)
 		return -ENOMEM;
-	ret = fuse_handle_bpf_prog(&bpf_entry, dir,
-				   &get_fuse_inode(inode)->bpf);
+	ret = fuse_bpf_transfer_create_prog(dir, entry, inode);
 	if (ret) {
 		iput(inode);
 		return ret;
@@ -1344,7 +1365,6 @@ static int fuse_bpf_symlink(struct inode *dir, struct dentry *entry,
 	struct inode *backing_dir;
 	struct inode *backing_inode;
 	struct inode *inode;
-	struct fuse_entry_bpf bpf_entry = { };
 	char *name_copy;
 	char *link_copy;
 	size_t name_len;
@@ -1423,8 +1443,7 @@ static int fuse_bpf_symlink(struct inode *dir, struct dentry *entry,
 		ret = -ENOMEM;
 		goto out_write;
 	}
-	ret = fuse_handle_bpf_prog(&bpf_entry, dir,
-				   &get_fuse_inode(inode)->bpf);
+	ret = fuse_bpf_transfer_create_prog(dir, entry, inode);
 	if (ret) {
 		iput(inode);
 		goto out_write;
