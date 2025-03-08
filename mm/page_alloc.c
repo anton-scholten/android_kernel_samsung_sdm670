@@ -6791,6 +6791,7 @@ static void calculate_totalreserve_pages(void)
 		}
 	}
 	totalreserve_pages = reserve_pages;
+	trace_mm_calculate_totalreserve_pages(totalreserve_pages);
 }
 
 /*

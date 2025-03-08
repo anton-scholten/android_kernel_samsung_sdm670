@@ -955,6 +955,24 @@ DEFINE_EVENT(iommu_sec_ptbl_map_range, iommu_sec_ptbl_map_range_end,
 
 	TP_ARGS(sec_id, num, va, pa, len)
 	);
+
+TRACE_EVENT(mm_calculate_totalreserve_pages,
+
+	TP_PROTO(unsigned long totalreserve_pages),
+
+	TP_ARGS(totalreserve_pages),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, totalreserve_pages)
+	),
+
+	TP_fast_assign(
+		__entry->totalreserve_pages = totalreserve_pages;
+	),
+
+	TP_printk("totalreserve_pages=%lu", __entry->totalreserve_pages)
+);
+
 #endif /* _TRACE_KMEM_H */
 
 /* This part must be outside protection */
