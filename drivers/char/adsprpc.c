@@ -898,6 +898,12 @@ static int fastrpc_mmap_create(struct fastrpc_file *fl, int fd,
 	} else if (mflags == FASTRPC_DMAHANDLE_NOMAP) {
 		ion_phys_addr_t iphys;
 
+		if (map->attr & FASTRPC_ATTR_KEEP_MAP) {
+			pr_err("adsprpc: Invalid attribute 0x%x for fd %d\n", map->attr, fd);
+			err = -EINVAL;
+			goto bail;
+		}
+
 		VERIFY(err, !IS_ERR_OR_NULL(map->handle =
 				ion_import_dma_buf_fd(fl->apps->client, fd)));
 		if (err)
