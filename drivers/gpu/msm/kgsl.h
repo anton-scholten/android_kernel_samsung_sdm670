@@ -443,6 +443,8 @@ long kgsl_ioctl_gpu_sparse_command(struct kgsl_device_private *dev_priv,
 
 void kgsl_mem_entry_destroy(struct kref *kref);
 
+unsigned long kgsl_get_align(struct kgsl_memdesc *memdesc);
+
 void kgsl_get_egl_counts(struct kgsl_mem_entry *entry,
 			int *egl_surface_count, int *egl_image_count);
 
