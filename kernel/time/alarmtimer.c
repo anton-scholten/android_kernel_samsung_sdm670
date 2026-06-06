@@ -353,6 +353,9 @@ static int alarmtimer_suspend(struct device *dev)
 	int ret;
 #ifdef CONFIG_SEC_PM_DEBUG
 	uint64_t msec = 0;
+	pid_t pid = 0;
+	char task_comm[TASK_COMM_LEN] = {0,};
+	void *func = NULL;
 #endif
 
 	spin_lock_irqsave(&freezer_delta_lock, flags);
@@ -384,7 +387,20 @@ static int alarmtimer_suspend(struct device *dev)
 		return 0;
 
 	if (ktime_to_ns(min) < 2 * NSEC_PER_SEC) {
-		__pm_wakeup_event(ws, 2 * MSEC_PER_SEC);
+		s64 msec = ktime_to_ms(min);
+		unsigned int wake_ms;
+
+		if (msec <= 0)
+			wake_ms = 1;
+		else
+			wake_ms = min_t(s64, msec + 1, 2 * MSEC_PER_SEC);
+
+		__pm_wakeup_event(ws, wake_ms);
+
+#ifdef CONFIG_SEC_PM_DEBUG
+		pr_err("%s: alarm will expire in %u ms[PID:%d(%s), %pf]\n",
+				__func__, wake_ms, pid, task_comm, func);
+#endif
 		return -EBUSY;
 	}
 
