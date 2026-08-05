@@ -315,8 +315,8 @@ int fuse_open_common(struct inode *inode, struct file *file, bool isdir)
 			return err;
 		}
 	}
-	/* A backing-only inode has no userspace node to fall back to. */
-	if (!get_node_id(inode) && get_fuse_inode(inode)->backing_inode)
+	/* Mixed lower and upper-cache handles are not coherent yet. */
+	if (get_fuse_inode(inode)->backing_inode)
 		return -EOPNOTSUPP;
 #endif
 
@@ -405,7 +405,11 @@ static int fuse_release(struct inode *inode, struct file *file)
 	struct fuse_conn *fc = get_fuse_conn(inode);
 
 	/* see fuse_vma_close() for !writeback_cache case */
+#ifdef CONFIG_FUSE_BPF
+	if (fc->writeback_cache && !fuse_file_has_backing(file))
+#else
 	if (fc->writeback_cache)
+#endif
 		write_inode_now(inode, 1);
 
 	fuse_release_common(file, FUSE_RELEASE);
@@ -933,6 +937,12 @@ static int fuse_readpage(struct file *file, struct page *page)
 	err = -EIO;
 	if (fuse_is_bad(inode))
 		goto out;
+#ifdef CONFIG_FUSE_BPF
+	err = -EOPNOTSUPP;
+	if (fuse_file_has_backing(file) ||
+	    fuse_inode_is_backing_only(inode))
+		goto out;
+#endif
 
 	err = fuse_do_readpage(file, page);
 	fuse_invalidate_atime(inode);
@@ -1060,6 +1070,12 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 	err = -EIO;
 	if (fuse_is_bad(inode))
 		goto out;
+#ifdef CONFIG_FUSE_BPF
+	err = -EOPNOTSUPP;
+	if (fuse_file_has_backing(file) ||
+	    fuse_inode_is_backing_only(inode))
+		goto out;
+#endif
 
 	data.file = file;
 	data.inode = inode;
@@ -1850,6 +1866,11 @@ int fuse_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct fuse_file *ff;
 	int err;
 
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_inode_is_backing_only(inode))
+		return 0;
+#endif
+
 	ff = __fuse_write_file_get(fc, fi);
 	err = fuse_flush_times(inode, ff);
 	if (ff)
@@ -1923,6 +1944,15 @@ err:
 static int fuse_writepage(struct page *page, struct writeback_control *wbc)
 {
 	int err;
+
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_inode_is_backing_only(page->mapping->host)) {
+		mapping_set_error(page->mapping, -EOPNOTSUPP);
+		redirty_page_for_writepage(wbc, page);
+		unlock_page(page);
+		return -EOPNOTSUPP;
+	}
+#endif
 
 	if (fuse_page_is_writeback(page->mapping->host, page->index)) {
 		/*
@@ -2147,6 +2177,13 @@ static int fuse_writepages(struct address_space *mapping,
 	err = -EIO;
 	if (fuse_is_bad(inode))
 		goto out;
+#ifdef CONFIG_FUSE_BPF
+	err = -EOPNOTSUPP;
+	if (fuse_inode_is_backing_only(inode)) {
+		mapping_set_error(mapping, err);
+		goto out;
+	}
+#endif
 
 	data.inode = inode;
 	data.req = NULL;
@@ -2187,6 +2224,12 @@ static int fuse_write_begin(struct file *file, struct address_space *mapping,
 	struct page *page;
 	loff_t fsize;
 	int err = -ENOMEM;
+
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_file_has_backing(file) ||
+	    fuse_inode_is_backing_only(mapping->host))
+		return -EOPNOTSUPP;
+#endif
 
 	WARN_ON(!fc->writeback_cache);
 
@@ -2229,6 +2272,15 @@ static int fuse_write_end(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = page->mapping->host;
 
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_file_has_backing(file)) {
+		mapping_set_error(mapping, -EOPNOTSUPP);
+		unlock_page(page);
+		put_page(page);
+		return -EOPNOTSUPP;
+	}
+#endif
+
 	/* Haven't copied anything?  Skip zeroing, size extending, dirtying. */
 	if (!copied)
 		goto unlock;
@@ -2254,6 +2306,13 @@ unlock:
 static int fuse_launder_page(struct page *page)
 {
 	int err = 0;
+
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_inode_is_backing_only(page->mapping->host)) {
+		mapping_set_error(page->mapping, -EOPNOTSUPP);
+		return -EOPNOTSUPP;
+	}
+#endif
 	if (clear_page_dirty_for_io(page)) {
 		struct inode *inode = page->mapping->host;
 		err = fuse_writepage_locked(page);
@@ -2315,6 +2374,11 @@ static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
 	struct fuse_file *ff = file->private_data;
 
 	ff->passthrough_enabled = 0;
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_file_has_backing(file))
+		return -ENODEV;
+#endif
+
 	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
 		fuse_link_write_file(file);
 
@@ -2328,6 +2392,11 @@ static int fuse_direct_mmap(struct file *file, struct vm_area_struct *vma)
 	struct fuse_file *ff = file->private_data;
 
 	ff->passthrough_enabled = 0;
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_file_has_backing(file))
+		return -ENODEV;
+#endif
+
 	/* Can't provide the coherency needed for MAP_SHARED */
 	if (vma->vm_flags & VM_MAYSHARE)
 		return -ENODEV;
@@ -2441,6 +2510,11 @@ static int fuse_file_lock(struct file *file, int cmd, struct file_lock *fl)
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	int err;
 
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_file_has_backing(file))
+		return -ENOLCK;
+#endif
+
 	if (cmd == F_CANCELLK) {
 		err = 0;
 	} else if (cmd == F_GETLK) {
@@ -2464,6 +2538,11 @@ static int fuse_file_flock(struct file *file, int cmd, struct file_lock *fl)
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	int err;
 
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_file_has_backing(file))
+		return -ENOLCK;
+#endif
+
 	if (fc->no_flock) {
 		err = locks_lock_file_wait(file, fl);
 	} else {
@@ -2485,6 +2564,11 @@ static sector_t fuse_bmap(struct address_space *mapping, sector_t block)
 	struct fuse_bmap_in inarg;
 	struct fuse_bmap_out outarg;
 	int err;
+
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_inode_is_backing_only(inode))
+		return 0;
+#endif
 
 	if (!inode->i_sb->s_bdev || fc->no_bmap)
 		return 0;
@@ -2555,6 +2639,14 @@ static loff_t fuse_file_llseek(struct file *file, loff_t offset, int whence)
 {
 	loff_t retval;
 	struct inode *inode = file_inode(file);
+
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_file_has_backing(file)) {
+		if (whence == SEEK_SET || whence == SEEK_CUR)
+			return generic_file_llseek(file, offset, whence);
+		return -EOPNOTSUPP;
+	}
+#endif
 
 	switch (whence) {
 	case SEEK_SET:
@@ -2924,6 +3016,11 @@ long fuse_ioctl_common(struct file *file, unsigned int cmd,
 	struct inode *inode = file_inode(file);
 	struct fuse_conn *fc = get_fuse_conn(inode);
 
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_file_has_backing(file))
+		return -ENOTTY;
+#endif
+
 	if (!fuse_allow_current_process(fc))
 		return -EACCES;
 
@@ -3004,6 +3101,16 @@ unsigned fuse_file_poll(struct file *file, poll_table *wait)
 	struct fuse_poll_out outarg;
 	FUSE_ARGS(args);
 	int err;
+
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_file_has_backing(file)) {
+		struct file *backing_file = ff->backing_file;
+
+		return backing_file->f_op->poll ?
+			backing_file->f_op->poll(backing_file, wait) :
+			DEFAULT_POLLMASK;
+	}
+#endif
 
 	if (fc->no_poll)
 		return DEFAULT_POLLMASK;
@@ -3097,6 +3204,12 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	size_t count = iov_iter_count(iter);
 	loff_t offset = iocb->ki_pos;
 	struct fuse_io_priv *io;
+
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_file_has_backing(file) ||
+	    fuse_inode_is_backing_only(file_inode(file)))
+		return -EOPNOTSUPP;
+#endif
 
 	pos = offset;
 	inode = file->f_mapping->host;
@@ -3198,6 +3311,11 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 	int err;
 	bool lock_inode = !(mode & FALLOC_FL_KEEP_SIZE) ||
 			   (mode & FALLOC_FL_PUNCH_HOLE);
+
+#ifdef CONFIG_FUSE_BPF
+	if (fuse_file_has_backing(file))
+		return -EOPNOTSUPP;
+#endif
 
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
 		return -EOPNOTSUPP;
