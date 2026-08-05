@@ -940,7 +940,7 @@ static int fuse_readpage(struct file *file, struct page *page)
 #ifdef CONFIG_FUSE_BPF
 	err = -EOPNOTSUPP;
 	if (fuse_file_has_backing(file) ||
-	    fuse_inode_is_backing_only(inode))
+	    fuse_inode_has_backing(inode))
 		goto out;
 #endif
 
@@ -1073,7 +1073,7 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 #ifdef CONFIG_FUSE_BPF
 	err = -EOPNOTSUPP;
 	if (fuse_file_has_backing(file) ||
-	    fuse_inode_is_backing_only(inode))
+	    fuse_inode_has_backing(inode))
 		goto out;
 #endif
 
@@ -1867,7 +1867,7 @@ int fuse_write_inode(struct inode *inode, struct writeback_control *wbc)
 	int err;
 
 #ifdef CONFIG_FUSE_BPF
-	if (fuse_inode_is_backing_only(inode))
+	if (fuse_inode_has_backing(inode))
 		return 0;
 #endif
 
@@ -1946,7 +1946,7 @@ static int fuse_writepage(struct page *page, struct writeback_control *wbc)
 	int err;
 
 #ifdef CONFIG_FUSE_BPF
-	if (fuse_inode_is_backing_only(page->mapping->host)) {
+	if (fuse_inode_has_backing(page->mapping->host)) {
 		mapping_set_error(page->mapping, -EOPNOTSUPP);
 		redirty_page_for_writepage(wbc, page);
 		unlock_page(page);
@@ -2179,7 +2179,7 @@ static int fuse_writepages(struct address_space *mapping,
 		goto out;
 #ifdef CONFIG_FUSE_BPF
 	err = -EOPNOTSUPP;
-	if (fuse_inode_is_backing_only(inode)) {
+	if (fuse_inode_has_backing(inode)) {
 		mapping_set_error(mapping, err);
 		goto out;
 	}
@@ -2227,7 +2227,7 @@ static int fuse_write_begin(struct file *file, struct address_space *mapping,
 
 #ifdef CONFIG_FUSE_BPF
 	if (fuse_file_has_backing(file) ||
-	    fuse_inode_is_backing_only(mapping->host))
+	    fuse_inode_has_backing(mapping->host))
 		return -EOPNOTSUPP;
 #endif
 
@@ -2273,7 +2273,8 @@ static int fuse_write_end(struct file *file, struct address_space *mapping,
 	struct inode *inode = page->mapping->host;
 
 #ifdef CONFIG_FUSE_BPF
-	if (fuse_file_has_backing(file)) {
+	if (fuse_file_has_backing(file) ||
+	    fuse_inode_has_backing(mapping->host)) {
 		mapping_set_error(mapping, -EOPNOTSUPP);
 		unlock_page(page);
 		put_page(page);
@@ -2308,7 +2309,7 @@ static int fuse_launder_page(struct page *page)
 	int err = 0;
 
 #ifdef CONFIG_FUSE_BPF
-	if (fuse_inode_is_backing_only(page->mapping->host)) {
+	if (fuse_inode_has_backing(page->mapping->host)) {
 		mapping_set_error(page->mapping, -EOPNOTSUPP);
 		return -EOPNOTSUPP;
 	}
@@ -2566,7 +2567,7 @@ static sector_t fuse_bmap(struct address_space *mapping, sector_t block)
 	int err;
 
 #ifdef CONFIG_FUSE_BPF
-	if (fuse_inode_is_backing_only(inode))
+	if (fuse_inode_has_backing(inode))
 		return 0;
 #endif
 
@@ -3207,7 +3208,7 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 #ifdef CONFIG_FUSE_BPF
 	if (fuse_file_has_backing(file) ||
-	    fuse_inode_is_backing_only(file_inode(file)))
+	    fuse_inode_has_backing(file_inode(file)))
 		return -EOPNOTSUPP;
 #endif
 
