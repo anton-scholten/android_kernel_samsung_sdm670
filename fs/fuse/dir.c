@@ -454,8 +454,8 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 			return result.result;
 		}
 	}
-	/* Unhandled backing lookups must not bypass policy in userspace. */
-	if (fuse_inode_has_backing(dir))
+	/* A backing-only inode has no valid daemon fallback. */
+	if (fuse_inode_has_backing(dir) && !get_node_id(dir))
 		return ERR_PTR(-EOPNOTSUPP);
 #endif
 
@@ -1295,7 +1295,8 @@ static int fuse_permission(struct inode *inode, int mask)
 				       fuse_access_finalize, inode, mask);
 		if (fer.ret)
 			return PTR_ERR_OR_ZERO(fer.result);
-		return -EOPNOTSUPP;
+		if (!get_node_id(inode))
+			return -EOPNOTSUPP;
 	}
 #endif
 
@@ -2000,7 +2001,8 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 				       attr_version);
 		if (fer.ret)
 			return PTR_ERR_OR_ZERO(fer.result);
-		return -EOPNOTSUPP;
+		if (!get_node_id(inode))
+			return -EOPNOTSUPP;
 	}
 #endif
 
