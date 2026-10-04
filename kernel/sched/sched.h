@@ -1962,6 +1962,12 @@ static inline unsigned long task_util(struct task_struct *p)
 	return p->se.avg.util_avg;
 }
 
+/* 4.9/WALT: no PELT util_est here; WALT's task_util() is the equivalent estimate. */
+static inline unsigned long task_util_est(struct task_struct *p)
+{
+	return task_util(p);
+}
+
 /*
  * cpu_util returns the amount of capacity of a CPU that is used by CFS
  * tasks. The unit of the return value must be the one of capacity so we can
