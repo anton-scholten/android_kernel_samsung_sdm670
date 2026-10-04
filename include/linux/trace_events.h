@@ -613,6 +613,31 @@ void bpf_trace_run11(struct bpf_prog *prog, u64 arg1, u64 arg2,
 void bpf_trace_run12(struct bpf_prog *prog, u64 arg1, u64 arg2,
 			u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7,
 			u64 arg8, u64 arg9, u64 arg10, u64 arg11, u64 arg12);
+void bpf_trace_run13(struct bpf_prog *prog, u64 arg1, u64 arg2,
+			u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7,
+			u64 arg8, u64 arg9, u64 arg10, u64 arg11, u64 arg12,
+			u64 arg13);
+void bpf_trace_run14(struct bpf_prog *prog, u64 arg1, u64 arg2,
+			u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7,
+			u64 arg8, u64 arg9, u64 arg10, u64 arg11, u64 arg12,
+			u64 arg13, u64 arg14);
+void bpf_trace_run15(struct bpf_prog *prog, u64 arg1, u64 arg2,
+			u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7,
+			u64 arg8, u64 arg9, u64 arg10, u64 arg11, u64 arg12,
+			u64 arg13, u64 arg14, u64 arg15);
+void bpf_trace_run16(struct bpf_prog *prog, u64 arg1, u64 arg2,
+			u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7,
+			u64 arg8, u64 arg9, u64 arg10, u64 arg11, u64 arg12,
+			u64 arg13, u64 arg14, u64 arg15, u64 arg16);
+void bpf_trace_run17(struct bpf_prog *prog, u64 arg1, u64 arg2,
+			u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7,
+			u64 arg8, u64 arg9, u64 arg10, u64 arg11, u64 arg12,
+			u64 arg13, u64 arg14, u64 arg15, u64 arg16, u64 arg17);
+void bpf_trace_run18(struct bpf_prog *prog, u64 arg1, u64 arg2,
+			u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7,
+			u64 arg8, u64 arg9, u64 arg10, u64 arg11, u64 arg12,
+			u64 arg13, u64 arg14, u64 arg15, u64 arg16, u64 arg17,
+			u64 arg18);
 void perf_trace_run_bpf_submit(void *raw_data, int size, int rctx,
 			       struct trace_event_call *call, u64 count,
 			       struct pt_regs *regs, struct hlist_head *head,
