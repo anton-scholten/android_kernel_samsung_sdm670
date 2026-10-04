@@ -52,7 +52,13 @@
 #define __CAST10(a,...) __CAST_TO_U64(a), __CAST9(__VA_ARGS__)
 #define __CAST11(a,...) __CAST_TO_U64(a), __CAST10(__VA_ARGS__)
 #define __CAST12(a,...) __CAST_TO_U64(a), __CAST11(__VA_ARGS__)
-/* tracepoints with more than 12 arguments will hit build error */
+#define __CAST13(a,...) __CAST_TO_U64(a), __CAST12(__VA_ARGS__)
+#define __CAST14(a,...) __CAST_TO_U64(a), __CAST13(__VA_ARGS__)
+#define __CAST15(a,...) __CAST_TO_U64(a), __CAST14(__VA_ARGS__)
+#define __CAST16(a,...) __CAST_TO_U64(a), __CAST15(__VA_ARGS__)
+#define __CAST17(a,...) __CAST_TO_U64(a), __CAST16(__VA_ARGS__)
+#define __CAST18(a,...) __CAST_TO_U64(a), __CAST17(__VA_ARGS__)
+/* tracepoints with more than 18 arguments will hit build error */
 #define CAST_TO_U64(...) CONCATENATE(__CAST, COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
 #undef DECLARE_EVENT_CLASS
