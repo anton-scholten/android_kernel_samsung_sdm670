@@ -3962,6 +3962,7 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_err_ret fer;
 	u64 attr_version;
+	struct path path;
 #endif
 
 	if (fuse_is_bad(inode))
@@ -3973,11 +3974,13 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 #ifdef CONFIG_FUSE_BPF
 	if (fi->backing_inode) {
 		attr_version = fuse_get_attr_version(fc);
+		path.mnt = mnt;
+		path.dentry = entry;
 		fer = fuse_bpf_backing(inode, struct fuse_getattr_io,
 				       fuse_getattr_initialize,
 				       fuse_getattr_backing,
-				       fuse_getattr_finalize, inode, path,
-				       stat, request_mask, flags,
+				       fuse_getattr_finalize, inode, &path,
+				       stat, 0, 0,
 				       attr_version);
 		if (fer.ret)
 			return PTR_ERR_OR_ZERO(fer.result);

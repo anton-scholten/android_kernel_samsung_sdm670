@@ -593,7 +593,7 @@ int fuse_getattr_backing(struct fuse_bpf_args *args,
 		goto out_path;
 
 	backing_inode = d_inode(backing_path.dentry);
-	ret = vfs_getattr(&backing_path, &lower_stat, request_mask, flags);
+	ret = vfs_getattr(&backing_path, &lower_stat);
 	if (!ret) {
 		memset(out, 0, sizeof(*out));
 		fuse_stat_to_attr(get_fuse_conn(inode), backing_inode,
@@ -977,8 +977,7 @@ out_write:
 	io->attr_version = ++fc->attr_version;
 	fi->attr_version = io->attr_version;
 	spin_unlock(&fc->lock);
-	ret = vfs_getattr(&backing_path, &lower_stat,
-			  STATX_BASIC_STATS, 0);
+	ret = vfs_getattr(&backing_path, &lower_stat);
 	if (ret)
 		generic_fillattr(backing_inode, &lower_stat);
 	memset(out, 0, sizeof(*out));
@@ -1267,7 +1266,7 @@ static int fuse_lookup_refresh_attr(struct fuse_conn *fc,
 	if (!inode)
 		return -ENOENT;
 
-	ret = vfs_getattr(path, &stat, STATX_BASIC_STATS, 0);
+	ret = vfs_getattr(path, &stat);
 	if (ret)
 		return ret;
 	fuse_stat_to_attr(fc, inode, &stat, &out->attr);
