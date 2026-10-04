@@ -323,6 +323,22 @@ struct drm_plane_funcs {
 	 * before data structures are torndown.
 	 */
 	void (*early_unregister)(struct drm_plane *plane);
+
+	/**
+	 * @format_mod_supported:
+	 *
+	 * This optional hook is used for the DRM to determine if the given
+	 * format/modifier combination is valid for the plane. This allows the
+	 * DRM to generate the correct format bitmask (which formats apply to
+	 * which modifier).
+	 *
+	 * Returns:
+	 *
+	 * True if the given modifier is valid for that format on the plane.
+	 * False otherwise.
+	 */
+	bool (*format_mod_supported)(struct drm_plane *plane, uint32_t format,
+				     uint64_t modifier);
 };
 
 /**
@@ -415,6 +431,9 @@ struct drm_plane {
 	uint32_t *format_types;
 	unsigned int format_count;
 	bool format_default;
+
+	uint64_t *modifiers;
+	unsigned int modifier_count;
 
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
