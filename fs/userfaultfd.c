@@ -1416,18 +1416,6 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 		}
 
 		/*
-		 * UFFDIO_COPY will fill file holes even without
-		 * PROT_WRITE. This check enforces that if this is a
-		 * MAP_SHARED, the process has write permission to the backing
-		 * file. If VM_MAYWRITE is set it also enforces that on a
-		 * MAP_SHARED vma: there is no F_WRITE_SEAL and no further
-		 * F_WRITE_SEAL can be taken until the vma is destroyed.
-		 */
-		ret = -EPERM;
-		if (unlikely(!(cur->vm_flags & VM_MAYWRITE)))
-			goto out_unlock;
-
-		/*
 		 * Check that this vma isn't already owned by a
 		 * different userfaultfd. We can't allow more than one
 		 * userfaultfd to own a single vma simultaneously or we
