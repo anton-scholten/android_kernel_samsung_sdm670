@@ -2790,7 +2790,7 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 	}
 
 	if (!dev_port->is_clk_aon) {
-		dev_port->geni_wake = wakeup_source_register(dev_name(&pdev->dev));
+		dev_port->geni_wake = wakeup_source_register(&pdev->dev, dev_name(&pdev->dev));
 		if(!dev_port->geni_wake) {
 			ret = -ENOMEM;
 			goto exit_geni_serial_probe;
