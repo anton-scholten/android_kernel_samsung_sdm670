@@ -1869,7 +1869,7 @@ void __bpf_trace_run(struct bpf_prog *prog, u64 *args)
 			REPEAT(x, SARG, __DL_COM, __SEQ_0_17))    \
 	{                                                               \
 		u64 args[x];                                            \
-		REPEAT(x, COPY, __DL_SEM, __SEQ_0_11);                  \
+		REPEAT(x, COPY, __DL_SEM, __SEQ_0_17);                  \
 		__bpf_trace_run(prog, args);                            \
 	}                                                               \
 	EXPORT_SYMBOL_GPL(bpf_trace_run##x)
