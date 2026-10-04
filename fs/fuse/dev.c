@@ -557,7 +557,7 @@ static struct fuse_req *fuse_get_req_force(struct fuse_conn *fc)
 	atomic_inc(&fc->num_waiting);
 	req = __fuse_request_alloc(0, GFP_KERNEL | __GFP_NOFAIL);
 	BUG_ON(!req);
-	fuse_req_init_context(fc, req);
+	fuse_req_init_context(req);
 	__set_bit(FR_WAITING, &req->flags);
 	__set_bit(FR_FORCE, &req->flags);
 	return req;
