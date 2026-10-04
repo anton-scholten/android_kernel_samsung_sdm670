@@ -244,6 +244,7 @@ config NEED_SG_DMA_LENGTH
 
 config SMP
 	def_bool y
+	select BPF_ARCH_SPINLOCK
 
 config SWIOTLB
 	def_bool y
