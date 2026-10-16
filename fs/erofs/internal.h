@@ -14,6 +14,18 @@
 #include <linux/bio.h>
 #include <linux/buffer_head.h>
 #include <linux/magic.h>
+#include <linux/wait.h>
+
+/* 4.9 compat: clear_and_wake_up_bit() is from Linux 5.0. */
+#ifndef clear_and_wake_up_bit
+static inline void erofs_clear_and_wake_up_bit(int bit, void *word)
+{
+	clear_bit_unlock(bit, word);
+	smp_mb__after_atomic();
+	wake_up_bit(word, bit);
+}
+#define clear_and_wake_up_bit erofs_clear_and_wake_up_bit
+#endif
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include "erofs_fs.h"
@@ -376,8 +388,8 @@ extern const struct inode_operations erofs_symlink_iops;
 extern const struct inode_operations erofs_fast_symlink_iops;
 
 struct inode *erofs_iget(struct super_block *sb, erofs_nid_t nid, bool dir);
-int erofs_getattr(const struct path *path, struct kstat *stat,
-		  u32 request_mask, unsigned int query_flags);
+int erofs_getattr(struct vfsmount *mnt, struct dentry *dentry,
+		  struct kstat *stat);
 
 /* namei.c */
 extern const struct inode_operations erofs_dir_iops;

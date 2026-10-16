@@ -747,7 +747,7 @@ static void z_erofs_vle_unzip_kickoff(void *ptr, int bios)
 static inline void z_erofs_vle_read_endio(struct bio *bio)
 {
 	struct erofs_sb_info *sbi = NULL;
-	blk_status_t err = bio->bi_status;
+	int err = bio->bi_error;	/* 4.9: no blk_status_t */
 	unsigned int i;
 	struct bio_vec *bvec;
 
@@ -1301,7 +1301,7 @@ submit_bio_retry:
 			bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
 
 			bio->bi_end_io = z_erofs_vle_read_endio;
-			bio_set_dev(bio, sb->s_bdev);
+			bio->bi_bdev = sb->s_bdev;	/* 4.9: no bio_set_dev() */
 			bio->bi_iter.bi_sector = (sector_t)(first_index + i) <<
 				LOG_SECTORS_PER_BLOCK;
 			bio->bi_private = bi_private;
