@@ -867,13 +867,14 @@ static int fuse_mknod(struct inode *dir, struct dentry *entry, umode_t mode,
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	FUSE_ARGS(args);
 
-	if (!fc->dont_mask)
-		mode &= ~current_umask();
-
 #ifdef CONFIG_FUSE_BPF
+	/* fuse_bpf_mknod() applies the umask itself, ACL-aware */
 	if (fuse_inode_has_backing(dir))
 		return fuse_bpf_mknod(dir, entry, mode, rdev, true);
 #endif
+
+	if (!fc->dont_mask)
+		mode &= ~current_umask();
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.mode = mode;
@@ -904,13 +905,14 @@ static int fuse_mkdir(struct inode *dir, struct dentry *entry, umode_t mode)
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	FUSE_ARGS(args);
 
-	if (!fc->dont_mask)
-		mode &= ~current_umask();
-
 #ifdef CONFIG_FUSE_BPF
+	/* fuse_bpf_mkdir() applies the umask itself, ACL-aware */
 	if (fuse_inode_has_backing(dir))
 		return fuse_bpf_mkdir(dir, entry, mode);
 #endif
+
+	if (!fc->dont_mask)
+		mode &= ~current_umask();
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.mode = mode;
@@ -1159,7 +1161,6 @@ static char *fuse_bpf_create_name(struct dentry *entry, size_t *name_len)
 static int fuse_bpf_mknod(struct inode *dir, struct dentry *entry,
 			  umode_t mode, dev_t rdev, bool excl)
 {
-	struct fuse_conn *fc = get_fuse_conn(dir);
 	struct fuse_mknod_in inarg = { };
 	struct fuse_mknod_in original;
 	struct fuse_bpf_args args = { };
@@ -1173,8 +1174,6 @@ static int fuse_bpf_mknod(struct inode *dir, struct dentry *entry,
 	int rollback;
 	int ret;
 
-	if (!fc->dont_mask)
-		mode &= ~current_umask();
 	switch (mode & S_IFMT) {
 	case S_IFREG:
 	case S_IFCHR:
@@ -1233,6 +1232,13 @@ static int fuse_bpf_mknod(struct inode *dir, struct dentry *entry,
 	ret = fuse_bpf_relookup(entry, &parent_path, &child_path);
 	if (ret)
 		goto out_write;
+	/*
+	 * As upstream fuse-bpf: apply the umask only when the backing filesystem
+	 * has no POSIX ACLs. Otherwise the parent's default ACL decides, and an
+	 * umask applied here would empty the inherited ACL mask.
+	 */
+	if (!IS_POSIXACL(backing_dir))
+		mode &= ~current_umask();
 	if (S_ISREG(mode))
 		ret = vfs_create2(parent_path.mnt, backing_dir,
 				  child_path.dentry, mode, excl);
@@ -1268,7 +1274,6 @@ out_name:
 static int fuse_bpf_mkdir(struct inode *dir, struct dentry *entry,
 			  umode_t mode)
 {
-	struct fuse_conn *fc = get_fuse_conn(dir);
 	struct fuse_mkdir_in inarg = { };
 	struct fuse_mkdir_in original;
 	struct fuse_bpf_args args = { };
@@ -1282,8 +1287,6 @@ static int fuse_bpf_mkdir(struct inode *dir, struct dentry *entry,
 	int rollback;
 	int ret;
 
-	if (!fc->dont_mask)
-		mode &= ~current_umask();
 	name = fuse_bpf_create_name(entry, &name_len);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
@@ -1330,6 +1333,9 @@ static int fuse_bpf_mkdir(struct inode *dir, struct dentry *entry,
 	ret = fuse_bpf_relookup(entry, &parent_path, &child_path);
 	if (ret)
 		goto out_write;
+	/* As in fuse_bpf_mknod(): umask only without POSIX ACLs */
+	if (!IS_POSIXACL(backing_dir))
+		mode &= ~current_umask();
 	ret = vfs_mkdir2(parent_path.mnt, backing_dir,
 			 child_path.dentry, mode);
 	if (!ret)
@@ -1406,8 +1412,6 @@ static int fuse_bpf_create_open(struct inode *dir, struct dentry *entry,
 
 	if ((mode & S_IFMT) != S_IFREG)
 		return -EINVAL;
-	if (!fc->dont_mask)
-		mode &= ~current_umask();
 
 	name = fuse_bpf_create_name(entry, &name_len);
 	if (IS_ERR(name))
@@ -1483,6 +1487,9 @@ static int fuse_bpf_create_open(struct inode *dir, struct dentry *entry,
 		else
 			ret = 0;
 	} else {
+		/* As in fuse_bpf_mknod(): umask only without POSIX ACLs */
+		if (!IS_POSIXACL(backing_dir))
+			mode &= ~current_umask();
 		ret = vfs_create2(parent_path.mnt, backing_dir,
 				  child_path.dentry, mode,
 				  !!(flags & O_EXCL));
