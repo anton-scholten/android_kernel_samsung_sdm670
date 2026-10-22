@@ -340,13 +340,13 @@ static int madvise_cold_or_pageout_pte_range(pmd_t *pmd,
 			return 0;
 		}
 
-		if (pmd_young(orig_pmd)) {
-			pmdp_invalidate(vma, addr, pmd);
-			orig_pmd = pmd_mkold(orig_pmd);
-
-			set_pmd_at(mm, addr, pmd, orig_pmd);
+		/*
+		 * Clear the access flag in place: on 4.9 arm64, set_pmd_at()
+		 * drops hardware-only dirty state (see the pte case below).
+		 */
+		if (pmd_young(orig_pmd) &&
+		    pmdp_test_and_clear_young(vma, addr, pmd))
 			tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-		}
 
 		ClearPageReferenced(page);
 		test_and_clear_page_young(page);
@@ -423,13 +423,19 @@ regular_page:
 
 		VM_BUG_ON_PAGE(PageTransCompound(page), page);
 
-		if (pte_young(ptent)) {
-			ptent = ptep_get_and_clear_full(mm, addr, pte,
-							tlb->fullmm);
-			ptent = pte_mkold(ptent);
-			set_pte_at(mm, addr, pte, ptent);
+		/*
+		 * Clear the access flag in place rather than through
+		 * ptep_get_and_clear_full() + set_pte_at(): on 4.9 arm64,
+		 * set_pte_at() sets PTE_RDONLY unless the software dirty bit
+		 * is set, so a page dirtied by the hardware (DBM) would come
+		 * back clean. 4.9 reclaim then takes a clean anon page that
+		 * is not in the swap cache for a MADV_FREE page and discards
+		 * it instead of swapping it out (TTU_LZFREE), and the process
+		 * later reads zeroes.
+		 */
+		if (pte_young(ptent) &&
+		    ptep_test_and_clear_young(vma, addr, pte))
 			tlb_remove_tlb_entry(tlb, pte, addr);
-		}
 
 		/*
 		 * We are deactivating a page for accelerating reclaiming.
