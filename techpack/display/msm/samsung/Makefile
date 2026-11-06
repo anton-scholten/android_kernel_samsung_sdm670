@@ -31,3 +31,6 @@ obj-y += MAFPC/
 # TO SUPPORT PBA BOOINT
 obj-y += PBA_BOOTING/ss_dsi_panel_PBA_BOOTING_fhd.o
 obj-y += PBA_BOOTING_DSI1/ss_dsi_panel_PBA_BOOTING_fhd_dsi1.o
+
+# TAB_S5 panel
+obj-$(CONFIG_PANEL_ANA38401_AMSA05RB01_WQXGA) += ANA38401_AMSA05RB01/
