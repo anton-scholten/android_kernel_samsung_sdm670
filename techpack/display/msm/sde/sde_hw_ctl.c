@@ -651,7 +651,7 @@ static inline u32 sde_hw_ctl_get_intf(struct sde_hw_ctl *ctx, u32 hwversion)
 	if (!ctl_top)
 		goto end;
 
-	if (IS_SDM845_TARGET(hwversion))
+	if (IS_SDM845_TARGET(hwversion) || IS_SDM670_TARGET(hwversion))
 		intf_active = (ctl_top >> 4) & 0xf;
 	else
 		intf_active = BIT(ctl_top - 1);
