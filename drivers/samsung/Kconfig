@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config DRV_SAMSUNG
+	bool "Samsung sec class"
+	help
+	  Creates the "sec" device class (/sys/class/sec) used by Samsung
+	  drivers to expose their factory and feature interfaces.
