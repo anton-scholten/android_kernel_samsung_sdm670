@@ -71,13 +71,29 @@ static struct llcc_slice_config sdm845_data[] =  {
 	SCT_ENTRY(LLCC_AUDHW,    22, 1024, 1, 1, 0xffc, 0x2,   0, 0, 1, 1, 0),
 };
 
+static struct llcc_slice_config sdm670_data[] =  {
+	SCT_ENTRY(LLCC_CPUSS,    1,  512,  1, 0, 0xf,   0x0,   0, 0, 1, 1, 1),
+	SCT_ENTRY(LLCC_ROTATOR,  4,  384,  2, 1, 0x0,   0xe,   2, 0, 1, 1, 0),
+	SCT_ENTRY(LLCC_VOICE,    5,  512,  1, 0, 0xf,   0x0,   0, 0, 1, 1, 0),
+	SCT_ENTRY(LLCC_AUDIO,    6,  512,  1, 0, 0xf,   0x0,   0, 0, 1, 1, 0),
+	SCT_ENTRY(LLCC_MDM,      8,  512,  1, 0, 0xf,   0x0,   0, 0, 1, 1, 0),
+	SCT_ENTRY(LLCC_GPU,      12, 384,  1, 1, 0x0,   0x0,   0, 0, 1, 1, 0),
+	SCT_ENTRY(LLCC_MMUHWT,   13, 512,  1, 0, 0xf,   0x0,   0, 0, 1, 0, 1),
+	SCT_ENTRY(LLCC_AUDHW,    22, 512,  1, 1, 0xf,   0x0,   0, 0, 1, 1, 0),
+};
+
 static int sdm845_qcom_llcc_probe(struct platform_device *pdev)
 {
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,sdm670-llcc"))
+		return qcom_llcc_probe(pdev, sdm670_data,
+				       ARRAY_SIZE(sdm670_data));
+
 	return qcom_llcc_probe(pdev, sdm845_data, ARRAY_SIZE(sdm845_data));
 }
 
 static const struct of_device_id sdm845_qcom_llcc_of_match[] = {
 	{ .compatible = "qcom,sdm845-llcc", },
+	{ .compatible = "qcom,sdm670-llcc", },
 	{ }
 };
 
