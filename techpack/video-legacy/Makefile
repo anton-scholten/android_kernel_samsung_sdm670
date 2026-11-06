@@ -6,7 +6,15 @@ ifeq ($(CONFIG_ARCH_SDM845), y)
 include $(srctree)/techpack/video-legacy/config/sdm845vid.conf
 endif
 
+ifeq ($(CONFIG_ARCH_SDM670), y)
+include $(srctree)/techpack/video-legacy/config/sdm845vid.conf
+endif
+
 ifeq ($(CONFIG_ARCH_SDM845), y)
+LINUXINCLUDE    += -include $(srctree)/techpack/video-legacy/config/sdm845vidconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_SDM670), y)
 LINUXINCLUDE    += -include $(srctree)/techpack/video-legacy/config/sdm845vidconf.h
 endif
 

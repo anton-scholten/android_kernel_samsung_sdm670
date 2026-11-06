@@ -29,7 +29,15 @@ ifeq ($(CONFIG_ARCH_SDM845), y)
 include $(srctree)/techpack/display/config/konadisp.conf
 endif
 
+ifeq ($(CONFIG_ARCH_SDM670), y)
+include $(srctree)/techpack/display/config/konadisp.conf
+endif
+
 ifeq ($(CONFIG_ARCH_SDM845), y)
+LINUXINCLUDE    += -include $(srctree)/techpack/display/config/konadispconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_SDM670), y)
 LINUXINCLUDE    += -include $(srctree)/techpack/display/config/konadispconf.h
 endif
 
