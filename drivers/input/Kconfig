@@ -38,6 +38,19 @@ config INPUT_LEDS
 	  To compile this driver as a module, choose M here: the
 	  module will be called input-leds.
 
+config INPUT_SEC_CMD
+	bool "Samsung input command interface"
+	help
+	  Factory and feature command sysfs interface used by Samsung input
+	  drivers.
+
+config INPUT_TOUCHSCREEN_TCLMV2
+	bool "Samsung touchscreen calibration management (TCLM v2)"
+	depends on INPUT_SEC_CMD
+	help
+	  Tracks touchscreen calibration position and history for Samsung
+	  touchscreen drivers.
+
 config INPUT_FF_MEMLESS
 	tristate "Support for memoryless force-feedback devices"
 	help
