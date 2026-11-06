@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* Samsung Galaxy Tab S5e LTE fixups shared by all regions and revisions */
+
+&soc {
+	msm_vibrator {
+		compatible = "vibrator";
+		motor-vdd_type = <1>; /* 0: gpio, 1: pmic */
+		vibr_vdd-supply = <&pm660l_l8>;
+		samsung,vib_type = "COINDC";
+	};
+};

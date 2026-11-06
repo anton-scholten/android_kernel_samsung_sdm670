@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* Samsung Galaxy Tab S5e LTE (USA), board rev 05 */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clock/qcom,gcc-sdm845.h>
+#include <dt-bindings/clock/qcom,camcc-sdm845.h>
+#include <dt-bindings/clock/qcom,dispcc-sdm845.h>
+#include <dt-bindings/clock/qcom,rpmh.h>
+#include <dt-bindings/spmi/spmi.h>
+#include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/msm/msm-bus-ids.h>
+
+#include "../qcom/sdm670-mtp.dtsi"
+#include "sdm670-sec-common.dtsi"
+#include "sdm670-sec-gts4lv-lte-common.dtsi"
+#include "sdm670-sec-gts4lv-pm-common.dtsi"
+#include "sdm670-sec-gts4lv-battery-common.dtsi"
+
+#include "sdm670-sec-gts4lv-r05.dtsi"
+#include "sdm670-sec-gts4lv-pinctrl-r05.dtsi"
+
+#include "dsi-panel-ana38401-amsa05rb01-wqxga-octa-cmd.dtsi"
+#include "sdm670-sec-gts4lv-displayport-r05.dtsi"
+#include "sdm670-sec-gts4lv-camera-sensor-r00.dtsi"
+#include "sdm670-sec-gts4lv-sensor-usa-r00.dtsi"
+
+#include "sdm670-sec-gts4lv-overlay-common.dtsi"
+
+/ {
+	model = "Samsung GTS4LV USA PROJECT (board-id,05)";
+	compatible = "qcom,sdm670-mtp", "qcom,sdm670", "qcom,mtp";
+	qcom,board-id = <8 5>;
+	qcom,pmic-id = <0x0001001b 0x0101011a 0x0 0x0>,
+	               <0x0001001b 0x0102001a 0x0 0x0>,
+	               <0x0001001b 0x0201011a 0x0 0x0>;
+};

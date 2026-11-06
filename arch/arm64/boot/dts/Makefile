@@ -37,6 +37,7 @@ else
         subdir-y += qcom
     else ifeq ($(CONFIG_ARCH_SDM670),y)
         subdir-y += qcom
+        subdir-y += samsung
     else
         subdir-y += vendor
     endif

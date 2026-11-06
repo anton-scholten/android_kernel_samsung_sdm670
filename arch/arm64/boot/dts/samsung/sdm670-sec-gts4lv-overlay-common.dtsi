@@ -1,0 +1,403 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* Samsung Galaxy Tab S5e board fixups shared by all variants and revisions */
+
+/* Fingerprint SPI pins (SE15, GPIO81-84) are owned by TZ */
+&tlmm {
+	gpio-reserved-ranges = <81 4>;
+};
+
+/* GPIO55/56 are the S2MM005 CCIC bit-banged I2C bus */
+&qupv3_se10_i2c {
+	status = "disabled";
+};
+
+/* No vibrator */
+&pm660_haptics {
+	status = "disabled";
+};
+
+/* VBUS and ID come from the Samsung USB notifier (S2MM005 CCIC) */
+&usb0 {
+	extcon = <&usb_noti>;
+	dr_mode = "otg";
+};
+
+/* Board USB2 PHY tuning (sdm670-sec-gts4lv-eif-r00.dtsi) */
+&qusb_phy0 {
+	qcom,bias-ctrl2-override-val = <0x1b>;
+	qcom,bias-ctrl2-override-val-host = <0x20>;
+
+	qcom,qusb-phy-host-init-seq =
+		/* <value reg_offset> */
+		<0x23 0x210>, /* PWR_CTRL1 */
+		<0x03 0x04>, /* PLL_ANALOG_CONTROLS_TWO */
+		<0x7c 0x18c>, /* PLL_CLOCK_INVERTERS */
+		<0x80 0x2c>, /* PLL_CMODE */
+		<0x0a 0x184>, /* PLL_LOCK_DELAY */
+		<0x19 0xb4>, /* PLL_DIGITAL_TIMERS_TWO */
+		<0x40 0x194>, /* PLL_BIAS_CONTROL_1 */
+		<0x20 0x198>, /* PLL_BIAS_CONTROL_2 */
+		<0x21 0x214>, /* PWR_CTRL2 */
+		<0x00 0x220>, /* IMP_CTRL1 */
+		<0x58 0x224>, /* IMP_CTRL2 */
+		<0x67 0x240>, /* TUNE1 */
+		<0x2a 0x244>, /* TUNE2 */
+		<0xca 0x248>, /* TUNE3 */
+		<0x01 0x24c>, /* TUNE4 */
+		<0x03 0x250>, /* TUNE5 */
+		<0x00 0x23c>, /* CHG_CTRL2 */
+		<0x22 0x210>; /* PWR_CTRL1 */
+
+	qcom,qusb-phy-init-seq =
+		/* <value reg_offset> */
+		<0x23 0x210>, /* PWR_CTRL1 */
+		<0x03 0x04>, /* PLL_ANALOG_CONTROLS_TWO */
+		<0x7c 0x18c>, /* PLL_CLOCK_INVERTERS */
+		<0x80 0x2c>, /* PLL_CMODE */
+		<0x0a 0x184>, /* PLL_LOCK_DELAY */
+		<0x19 0xb4>, /* PLL_DIGITAL_TIMERS_TWO */
+		<0x40 0x194>, /* PLL_BIAS_CONTROL_1 */
+		<0x18 0x198>, /* PLL_BIAS_CONTROL_2 - for GTS4LV */
+		<0x21 0x214>, /* PWR_CTRL2 */
+		<0x1e 0x220>, /* IMP_CTRL1 */
+		<0x58 0x224>, /* IMP_CTRL2 */
+		<0x67 0x240>, /* TUNE1 */
+		<0x29 0x244>, /* TUNE2 */
+		<0xca 0x248>, /* TUNE3 */
+		<0x00 0x24c>, /* TUNE4 */
+		<0x03 0x250>, /* TUNE5 */
+		<0x00 0x23c>, /* CHG_CTRL2 */
+		<0x22 0x210>; /* PWR_CTRL1 */
+};
+
+&usb0 {
+	dwc3@a600000 {
+		snps,usb3_lpm_capable = <0>;
+	};
+};
+
+&tlmm {
+	muic_i2c_26_pins: muic_i2c_26_pins {
+		mux {
+			pins = "gpio43", "gpio44";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio43", "gpio44";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	s2mm005_irq_default: s2mm005_irq_default {
+		mux {
+			pins = "gpio38";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio38";
+			drive-strength = <2>;
+			bias-disable;
+			input-enable;
+		};
+	};
+
+	s2mm005_i2c_default: s2mm005_i2c_default {
+		mux {
+			pins = "gpio55", "gpio56";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio55", "gpio56";
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+
+	s2mm005_hard_reset: s2mm005_hard_reset {
+		mux {
+			pins = "gpio55", "gpio56";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio55", "gpio56";
+			drive-strength = <6>;
+			bias-pull-down;
+			output-low;
+		};
+	};
+
+	ptn36502_en_default: ptn36502_en_default {
+		mux {
+			pins = "gpio15";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio15";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	sm5705_muic_int_default: sm5705_muic_int_default {
+		mux {
+			pins = "gpio80";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio80";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+};
+
+&soc {
+	i2c_26: i2c@26 {
+		compatible = "i2c-gpio";
+		gpios = <&tlmm 43 0	/* IF_PMIC_SDA_1P8 */
+		         &tlmm 44 0>;	/* IF_PMIC_SCL_1P8 */
+		i2c-gpio,delay-us = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&muic_i2c_26_pins>;
+
+		muic@25 {
+			compatible = "muic-universal";
+			reg = <0x25>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <80 IRQ_TYPE_NONE>;
+			muic-universal,irq-gpio = <&tlmm 80 0>;
+			muic-universal,chip_name = "sm,sm5705";
+			muic-universal,afc-support = <1>;
+			pinctrl-names = "muic_interrupt_pins_default";
+			pinctrl-0 = <&sm5705_muic_int_default>;
+			muic,sm5705_switch_gpio = <&tlmm 98 0>;
+		};
+
+		sm5705@49 {
+			compatible = "sm,sm5705";
+			reg = <0x49>;
+			sm5705,irq-gpio = <&tlmm 22 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&charger_int_active>;
+		};
+	};
+
+	i2c_28: i2c@28 {
+		compatible = "i2c-gpio";
+		gpios = <&tlmm 55 0	/* CCIC_I2C_SDA_1P8 */
+		         &tlmm 56 0>;	/* CCIC_I2C_SCL_1P8 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default", "hard_reset";
+		pinctrl-0 = <&s2mm005_i2c_default>;
+		pinctrl-1 = <&s2mm005_hard_reset>;
+
+		usbpd@33 {
+			compatible = "samsung,s2mm005";
+			reg = <0x33>;
+			interrupt-parent = <&tlmm>;
+			usbpd,usbpd_int = <&tlmm 38 0>;
+			usbpd,s2mm005_sda = <&tlmm 55 0>;
+			usbpd,s2mm005_scl = <&tlmm 56 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&s2mm005_irq_default>;
+			usbpd,s2mm005_fw_product_id = <0x12>;
+			support_pd_role_swap;
+		};
+	};
+
+	usb_noti: usb-notifier {
+		compatible = "samsung,usb-notifier";
+		qcom,disable_control_en = <1>;
+		samsung,cc-dir-gpio = <&tlmm 25 0>;
+		#extcon-cells = <0>;
+	};
+};
+
+&soc {
+	fixed_reg_octavdd: fixed_reg_octavdd {
+		compatible = "regulator-fixed";
+		regulator-name = "octa-vdd";
+		gpio = <&tlmm 21 0>; /* LCD_LDO_EN */
+		enable-active-high;
+		regulator-boot-on;
+	};
+};
+
+&sde_dsi_active {
+	mux {
+		pins = "gpio126", "gpio21";
+	};
+	config {
+		pins = "gpio126", "gpio21";
+	};
+};
+
+&sde_dsi_suspend {
+	mux {
+		pins = "gpio126", "gpio21";
+	};
+	config {
+		pins = "gpio126", "gpio21";
+	};
+};
+
+&tlmm {
+	mdss_dsi_tcon_rdy_active: mdss_dsi_tcon_rdy_active {
+		mux {
+			pins = "gpio79";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio79";
+			drive-strength = <8>;
+			input-enable;
+			bias-pull-down;
+		};
+	};
+
+	mdss_dsi_tcon_rdy_suspend: mdss_dsi_tcon_rdy_suspend {
+		mux {
+			pins = "gpio79";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio79";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	mdss_disp_det_active: mdss_disp_det_active {
+		mux {
+			pins = "gpio26";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio26";
+			drive-strength = <2>;
+			bias-disable;
+			input-enable;
+		};
+	};
+
+	mdss_disp_det_suspend: mdss_disp_det_suspend {
+		mux {
+			pins = "gpio26";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio26";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+};
+
+&sde_dsi {
+	pinctrl-0 = <&sde_dsi_active &sde_te_active
+	             &mdss_dsi_tcon_rdy_active &mdss_disp_det_active>;
+	pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend
+	             &mdss_dsi_tcon_rdy_suspend &mdss_disp_det_suspend>;
+	/delete-property/ vddio-supply;
+	/delete-property/ lab-supply;
+	/delete-property/ ibb-supply;
+	vddlcd-supply = <&fixed_reg_octavdd>;
+	qcom,dsi-default-panel = <&ss_dsi_panel_ANA38401_AMSA05RB01_WQXGA>;
+};
+
+&ss_dsi_panel_ANA38401_AMSA05RB01_WQXGA {
+	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
+	qcom,mdss-dsi-force-clock-lane-hs;
+	qcom,dsi-ctrl-num = <0 1>;
+	qcom,dsi-phy-num = <0 1>;
+	qcom,platform-reset-gpio = <&tlmm 126 0>;
+	/delete-property/ qcom,panel-mode-gpio;
+
+	qcom,panel-supply-entries {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "vddlcd";
+			qcom,supply-min-voltage = <0>;
+			qcom,supply-max-voltage = <0>;
+			qcom,supply-enable-load = <0>;
+			qcom,supply-disable-load = <0>;
+			qcom,supply-pre-off-sleep = <5>;
+			qcom,supply-post-on-sleep = <10>;
+		};
+	};
+};
+
+/* No NFC */
+&qupv3_se3_i2c {
+	nq@28 {
+		status = "disabled";
+	};
+};
+
+/* USB 3.0 / DP redriver on the Type-C SuperSpeed lanes */
+&qupv3_se3_i2c {
+	status = "ok";
+	pinctrl-0 = <&qupv3_se3_i2c_active &ptn36502_en_default>;
+
+	redriver@1a {
+		compatible = "nxp,ptn36502";
+		reg = <0x1a>;
+		combo,ptn_en = <&tlmm 15 0>;
+		combo,redriver_en = <&tlmm 16 0>;
+		combo,con_sel = <&tlmm 25 0>;
+	};
+};
+
+/* Pogo keyboard dock FPGA (sdm670-sec-gts4lv-eif-r00.dtsi) */
+&qupv3_se8_spi {
+	status = "okay";
+
+	pogo_fpga@1 {
+		compatible = "pogo_fpga";
+		reg = <1>;
+		spi-max-frequency = <50000000>;
+		fpga,gpio_cdone = <&tlmm 107 0>;
+		fpga,pogo_ldo_en = <&tlmm 116 0>;
+		fpga,gpio_reset = <&tlmm 106 0>;
+		fpga,gpio_crst_b = <&tlmm 2 0>;
+		fpga,gpio_cs = <&tlmm 105 0>;
+		pinctrl-names = "fpga_pogo_ldo_en", "fpga_cdone";
+		pinctrl-0 = <&fpga_pogo_ldo_en>;
+		pinctrl-1 = <&fpga_cdone>;
+	};
+};
+
+&tlmm {
+	fpga_pogo_ldo_en: fpga_pogo_ldo_en {
+		mux {
+			pins = "gpio116";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio116";
+			drive-strength = <2>;
+			bias-disable;
+			output-high;
+		};
+	};
+
+	fpga_cdone: fpga_cdone {
+		mux {
+			pins = "gpio107";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio107";
+			drive-strength = <2>;
+			input-enable;
+			bias-disable;
+		};
+	};
+};
