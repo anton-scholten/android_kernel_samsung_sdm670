@@ -1190,6 +1190,8 @@ config TOUCHSCREEN_STMFTS
 	  To compile this driver as a module, choose M here: the
 	  module will be called stmfts.
 
+source "drivers/input/touchscreen/stm/fts1ba90a/Kconfig"
+
 config TOUCHSCREEN_STMPE
 	tristate "STMicroelectronics STMPE touchscreens"
 	depends on MFD_STMPE

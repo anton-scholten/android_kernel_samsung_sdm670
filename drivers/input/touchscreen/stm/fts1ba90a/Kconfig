@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config TOUCHSCREEN_FTS1BA90A
+	tristate "STMicroelectronics FTS1BA90A touchscreen"
+	depends on I2C
+	select INPUT_SEC_CMD
+	help
+	  Say Y here to enable support for the STMicroelectronics
+	  FTS1BA90A FingerTipS touchscreen used on Samsung devices.
+
+	  If unsure, say N.
