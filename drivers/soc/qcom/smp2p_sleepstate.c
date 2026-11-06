@@ -77,6 +77,9 @@ static int smp2p_sleepstate_probe(struct platform_device *pdev)
 		goto err_ws;
 	}
 
+	if (!of_find_property(node, "interrupt-names", NULL))
+		return 0;
+
 	irq = of_irq_get_byname(node, "smp2p-sleepstate-in");
 	if (irq <= 0) {
 		dev_err(dev, "failed to get irq for smp2p_sleep_state\n");
