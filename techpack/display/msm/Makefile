@@ -3,6 +3,8 @@ ccflags-y := -I$(srctree)/include/drm -I$(srctree)/techpack/display/msm -I$(srct
 ccflags-y += -I$(srctree)/techpack/display/msm/sde
 ccflags-y += -I$(srctree)/techpack/display/rotator
 
+ccflags-$(CONFIG_DISPLAY_SAMSUNG) += -I$(srctree)/techpack/display/msm/samsung
+
 msm_drm-$(CONFIG_DRM_MSM_DP) += dp/dp_usbpd.o \
 	dp/dp_parser.o \
 	dp/dp_power.o \
@@ -118,3 +120,4 @@ msm_drm-$(CONFIG_DRM_MSM) += \
 obj-$(CONFIG_DRM_MSM)	+= msm_drm.o
 
 obj-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
+obj-$(CONFIG_DISPLAY_SAMSUNG) += samsung/
