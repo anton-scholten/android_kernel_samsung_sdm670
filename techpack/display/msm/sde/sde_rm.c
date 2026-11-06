@@ -1746,6 +1746,7 @@ int sde_rm_cont_splash_res_init(struct msm_drm_private *priv,
 	struct sde_kms *sde_kms = NULL;
 	struct sde_hw_mdp *hw_mdp;
 	struct sde_splash_display *splash_display;
+	bool legacy_split = false;
 	u8 intf_sel;
 
 	if (!priv || !rm || !cat || !splash_data) {
@@ -1768,6 +1769,11 @@ int sde_rm_cont_splash_res_init(struct msm_drm_private *priv,
 
 	hw_mdp = sde_rm_get_mdp(rm);
 
+	/* Pre-SDE5 split display uses one CTL per interface */
+	if (hw_mdp && hw_mdp->ops.get_split_display_status &&
+			!(cat->ctl[0].features & BIT(SDE_CTL_ACTIVE_CFG)))
+		legacy_split = hw_mdp->ops.get_split_display_status(hw_mdp);
+
 	sde_rm_init_hw_iter(&iter_c, 0, SDE_HW_BLK_CTL);
 	while (_sde_rm_get_hw_locked(rm, &iter_c)
 			&& (index < splash_data->num_splash_displays)) {
@@ -1789,6 +1795,10 @@ int sde_rm_cont_splash_res_init(struct msm_drm_private *priv,
 			splash_display->cont_splash_enabled = true;
 			splash_display->ctl_ids[splash_display->ctl_cnt++] =
 				iter_c.blk->id;
+
+			if (legacy_split && splash_display->ctl_cnt <
+					MAX_DATA_PATH_PER_DSIPLAY)
+				continue;
 		}
 		index++;
 	}

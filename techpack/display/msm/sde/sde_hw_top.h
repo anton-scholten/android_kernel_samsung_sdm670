@@ -178,6 +178,12 @@ struct sde_hw_mdp_ops {
 	u32 (*get_split_flush_status)(struct sde_hw_mdp *mdp);
 
 	/**
+	 * get_split_display_status - get split display enable status
+	 * @mdp: mdp top context driver
+	 */
+	u32 (*get_split_display_status)(struct sde_hw_mdp *mdp);
+
+	/**
 	 * reset_ubwc - reset top level UBWC configuration
 	 * @mdp: mdp top context driver
 	 * @m: pointer to mdss catalog data
