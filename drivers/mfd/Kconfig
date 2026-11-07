@@ -957,6 +957,14 @@ config MFD_QCOM_RPM
 	  Say M here if you want to include support for the Qualcomm RPM as a
 	  module. This will build a module called "qcom_rpm".
 
+config MFD_SM5705
+	bool "SiliconMitus SM5705 IFPM"
+	depends on I2C=y
+	select MFD_CORE
+	help
+	  Core driver for the SiliconMitus SM5705 charger, flash and LED
+	  power management IC.
+
 config MFD_SPMI_PMIC
 	tristate "Qualcomm SPMI PMICs"
 	depends on ARCH_QCOM || COMPILE_TEST
