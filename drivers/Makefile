@@ -197,3 +197,7 @@ obj-$(CONFIG_USE_MUIC)		+= muic/
 obj-$(CONFIG_USE_MUIC)		+= muic/
 obj-$(CONFIG_USE_MUIC)		+= muic/
 obj-$(CONFIG_CCIC_NOTIFIER)	+= ccic/
+obj-$(CONFIG_USE_MUIC)		+= muic/
+# before ccic/, which configures the redriver on attach
+obj-$(CONFIG_COMBO_REDRIVER)	+= redriver/
+obj-$(CONFIG_CCIC_NOTIFIER)	+= ccic/
