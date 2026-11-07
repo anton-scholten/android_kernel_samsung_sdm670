@@ -39,7 +39,16 @@
 #endif
 
 #if defined(CONFIG_CCIC_ALTERNATE_MODE)
-extern void dwc3_max_speed_setting(int speed);
+extern void set_host_turn_on_event(int mode);
+
+/* DP alternate mode owns the SuperSpeed lanes, keep the host on USB 2.0 */
+static int usb_hs_only;
+
+void dwc3_max_speed_setting(int speed)
+{
+	usb_hs_only = speed;
+}
+EXPORT_SYMBOL(dwc3_max_speed_setting);
 #endif
 
 /* VBUS, ID and Type-C polarity for dwc3-msm */
@@ -130,6 +139,9 @@ static int ccic_usb_handle_notification(struct notifier_block *nb,
 #endif
 			send_otg_notify(o_notify, NOTIFY_EVENT_HOST, 1);
 			is_host = 1;
+#if defined(CONFIG_CCIC_ALTERNATE_MODE)
+			set_host_turn_on_event(1);
+#endif
 			break;
 		case USB_STATUS_NOTIFY_ATTACH_UFP:
 			pr_info("%s: Turn On Device(UFP)\n", __func__);
@@ -148,6 +160,9 @@ static int ccic_usb_handle_notification(struct notifier_block *nb,
 				pr_info("%s: Turn Off Host(DFP)\n", __func__);
 				send_otg_notify(o_notify, NOTIFY_EVENT_HOST, 0);
 				is_host = 0;
+#if defined(CONFIG_CCIC_ALTERNATE_MODE)
+				set_host_turn_on_event(0);
+#endif
 			} else {
 				pr_info("%s: Turn Off Device(UFP)\n", __func__);
 				send_otg_notify(o_notify, NOTIFY_EVENT_VBUS, 0);
@@ -358,7 +373,11 @@ static void usb_extcon_set(unsigned int id, bool enable)
 
 	extcon_set_state(usb_edev, id, true);
 
+#if defined(CONFIG_CCIC_ALTERNATE_MODE)
+	val.intval = !usb_hs_only;
+#else
 	val.intval = 1;
+#endif
 	extcon_set_property(usb_edev, id, EXTCON_PROP_USB_SS, val);
 
 	/* the CC direction pin is low for CC2 */
@@ -370,6 +389,26 @@ static void usb_extcon_set(unsigned int id, bool enable)
 
 	extcon_sync(usb_edev, id);
 }
+
+#if defined(CONFIG_CCIC_ALTERNATE_MODE)
+int dwc3_restart_usb_host_mode_hs(void)
+{
+	if (usb_hs_only)
+		return 0;
+
+	usb_hs_only = 1;
+	if (!is_host)
+		return 0;
+
+	pr_info("%s: restarting host on USB 2.0\n", __func__);
+	usb_extcon_set(EXTCON_USB_HOST, false);
+	/* let dwc3 stop the host before it is started again */
+	msleep(500);
+	usb_extcon_set(EXTCON_USB_HOST, true);
+	return 0;
+}
+EXPORT_SYMBOL(dwc3_restart_usb_host_mode_hs);
+#endif
 
 static int qcom_set_peripheral(bool enable)
 {
