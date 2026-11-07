@@ -1949,4 +1949,11 @@ config SENSORS_ATK0110
 
 endif # ACPI
 
+config SEC_THERMISTOR
+	bool "Samsung SEC thermistor driver"
+	depends on DRV_SAMSUNG && IIO
+	help
+	  Exposes board thermistors read through an IIO ADC channel to the
+	  Samsung sec class (/sys/class/sec/sec-*-thermistor).
+
 endif # HWMON
