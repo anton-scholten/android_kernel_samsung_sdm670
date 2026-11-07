@@ -214,6 +214,11 @@ Optional properties:
  - qcom,host-chirp-erratum: Indicates host chirp fix is required.
  - qcom,override-bias-ctrl2: Indicates override is done from driver for
    BIAS_CTRL2 register.
+ - qcom,bias-ctrl2-override-val: BIAS_CTRL2 value written in device mode
+   when qcom,override-bias-ctrl2 is set and the bandgap is bypassed.
+   Defaults to 0x28.
+ - qcom,bias-ctrl2-override-val-host: Same as above for host mode. Defaults
+   to qcom,bias-ctrl2-override-val.
  - nvmem-cells: specifies the handle to represent the SoC revision.
    usually it is defined by qfprom device node.
  - nvmem-cell-names: specifies the given nvmem cell name as defined in

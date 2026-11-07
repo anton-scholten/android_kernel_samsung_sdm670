@@ -153,6 +153,8 @@ struct qusb_phy {
 	u8                      bias_ctrl2;
 
 	bool			override_bias_ctrl2;
+	u32			bias_ctrl2_override;
+	u32			bias_ctrl2_override_host;
 
 	struct hrtimer		timer;
 };
@@ -555,7 +557,7 @@ static void qusb_phy_host_init(struct usb_phy *phy)
 
 	if (qphy->refgen_north_bg_reg && qphy->override_bias_ctrl2)
 		if (readl_relaxed(qphy->refgen_north_bg_reg) & BANDGAP_BYPASS)
-			writel_relaxed(BIAS_CTRL_2_OVERRIDE_VAL,
+			writel_relaxed(qphy->bias_ctrl2_override_host,
 				qphy->base + qphy->phy_reg[BIAS_CTRL_2]);
 
 	if (qphy->bias_ctrl2)
@@ -646,7 +648,7 @@ static int qusb_phy_init(struct usb_phy *phy)
 
 	if (qphy->refgen_north_bg_reg && qphy->override_bias_ctrl2)
 		if (readl_relaxed(qphy->refgen_north_bg_reg) & BANDGAP_BYPASS)
-			writel_relaxed(BIAS_CTRL_2_OVERRIDE_VAL,
+			writel_relaxed(qphy->bias_ctrl2_override,
 				qphy->base + qphy->phy_reg[BIAS_CTRL_2]);
 
 	if (qphy->bias_ctrl2)
@@ -1336,6 +1338,13 @@ static int qusb_phy_probe(struct platform_device *pdev)
 
 	qphy->override_bias_ctrl2 = of_property_read_bool(dev->of_node,
 					"qcom,override-bias-ctrl2");
+
+	qphy->bias_ctrl2_override = BIAS_CTRL_2_OVERRIDE_VAL;
+	of_property_read_u32(dev->of_node, "qcom,bias-ctrl2-override-val",
+			     &qphy->bias_ctrl2_override);
+	qphy->bias_ctrl2_override_host = qphy->bias_ctrl2_override;
+	of_property_read_u32(dev->of_node, "qcom,bias-ctrl2-override-val-host",
+			     &qphy->bias_ctrl2_override_host);
 
 	ret = of_property_read_u32_array(dev->of_node, "qcom,vdd-voltage-level",
 					 (u32 *) qphy->vdd_levels,
