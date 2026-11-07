@@ -9,6 +9,13 @@
 
 #include <drm/drm_dp_helper.h>
 
+#ifdef CONFIG_SEC_DISPLAYPORT
+#include "secdp.h"
+#ifdef CONFIG_SEC_DISPLAYPORT_BIGDATA
+#include <linux/displayport_bigdata.h>
+#endif
+#endif
+
 #include "dp_catalog.h"
 #include "dp_audio.h"
 #include "dp_panel.h"
@@ -412,6 +419,11 @@ static int dp_audio_info_setup(struct platform_device *pdev,
 		return rc;
 	}
 
+#ifdef CONFIG_SEC_DISPLAYPORT_BIGDATA
+	secdp_bigdata_save_item(BD_AUD_CH, params->num_of_channels);
+	secdp_bigdata_save_item(BD_AUD_FREQ, params->sample_rate_hz);
+#endif
+
 	mutex_lock(&audio->ops_lock);
 
 	audio->channels = params->num_of_channels;
@@ -463,6 +475,13 @@ static int dp_audio_get_edid_blk(struct platform_device *pdev,
 
 	blk->audio_data_blk = edid->audio_data_block;
 	blk->audio_data_blk_size = edid->adb_size;
+#if defined(CONFIG_SEC_DISPLAYPORT)
+	print_hex_dump(KERN_DEBUG, "AUDIO_BLK: ",
+			DUMP_PREFIX_NONE, 16, 1, blk->audio_data_blk,
+			blk->audio_data_blk_size, false);
+	secdp_logger_hex_dump(blk->audio_data_blk, "AUDIO_BLK:",
+			blk->audio_data_blk_size);
+#endif
 
 	blk->spk_alloc_data_blk = edid->spkr_alloc_data_block;
 	blk->spk_alloc_data_blk_size = edid->sadb_size;
@@ -742,6 +761,13 @@ static int dp_audio_on(struct dp_audio *dp_audio)
 		DP_ERR("invalid input\n");
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_SEC_DISPLAYPORT
+	if (!secdp_get_cable_status()) {
+		DP_INFO("cable is out\n");
+		return -EINVAL;
+	}
+#endif
 
 	audio = container_of(dp_audio, struct dp_audio_private, dp_audio);
 	if (IS_ERR(audio)) {

@@ -11,6 +11,9 @@
 #include "dp_catalog.h"
 #include "dp_reg.h"
 #include "dp_debug.h"
+#ifdef CONFIG_SEC_DISPLAYPORT
+#include "secdp.h"
+#endif
 
 #define DP_GET_MSB(x)	(x >> 8)
 #define DP_GET_LSB(x)	(x & 0xff)
@@ -148,6 +151,13 @@ static u32 dp_read_hw(struct dp_catalog_private *catalog,
 {
 	u32 data = 0;
 
+#ifdef CONFIG_SEC_DISPLAYPORT
+	if (!secdp_get_clk_status(DP_CORE_PM)) {
+		DP_DEBUG("core_clks_on: off\n");
+		return 0;
+	}
+#endif
+
 	data = readl_relaxed(io_data->io.base + offset);
 
 	return data;
@@ -156,6 +166,13 @@ static u32 dp_read_hw(struct dp_catalog_private *catalog,
 static void dp_write_hw(struct dp_catalog_private *catalog,
 	struct dp_io_data *io_data, u32 offset, u32 data)
 {
+#ifdef CONFIG_SEC_DISPLAYPORT
+	if (!secdp_get_clk_status(DP_CORE_PM)) {
+		DP_DEBUG("core_clks_on: off\n");
+		return;
+	}
+#endif
+
 	writel_relaxed(data, io_data->io.base + offset);
 }
 
@@ -272,7 +289,16 @@ static int dp_catalog_aux_clear_trans(struct dp_catalog_aux *aux, bool read)
 
 	if (read) {
 		data = dp_read(DP_AUX_TRANS_CTRL);
+#ifdef CONFIG_SEC_DISPLAYPORT
+		/* Prevent_CXX Major defect - Invalid Assignment: The type size
+		 * of both side variables are different:
+		 * "data" is 4 ( unsigned int ) and "data & 0xfffffffffffffdffUL
+		 * " is 8 ( unsigned long )
+		 */
+		data &= ((u32)~BIT(9));
+#else
 		data &= ~BIT(9);
+#endif
 		dp_write(DP_AUX_TRANS_CTRL, data);
 	} else {
 		dp_write(DP_AUX_TRANS_CTRL, 0);
@@ -296,6 +322,10 @@ static void dp_catalog_aux_clear_hw_interrupts(struct dp_catalog_aux *aux)
 	io_data = catalog->io.dp_phy;
 
 	data = dp_read(DP_PHY_AUX_INTERRUPT_STATUS);
+#ifdef CONFIG_SEC_DISPLAYPORT
+	if (data)
+		DP_DEBUG("PHY_AUX_INTERRUPT_STATUS=0x%08x\n", data);
+#endif
 
 	dp_write(DP_PHY_AUX_INTERRUPT_CLEAR, 0x1f);
 	wmb(); /* make sure 0x1f is written before next write */
@@ -371,6 +401,13 @@ static void dp_catalog_aux_update_cfg(struct dp_catalog_aux *aux,
 		DP_ERR("invalid input\n");
 		return;
 	}
+
+#ifdef CONFIG_SEC_DISPLAYPORT
+	if (!secdp_get_cable_status()) {
+		DP_INFO("cable is out\n");
+		return;
+	}
+#endif
 
 	catalog = dp_catalog_get_priv(aux);
 
@@ -1470,7 +1507,9 @@ static void dp_catalog_panel_dp_flush(struct dp_catalog_panel *panel,
 static void dp_catalog_panel_pps_flush(struct dp_catalog_panel *panel)
 {
 	dp_catalog_panel_dp_flush(panel, DP_PPS_FLUSH);
+#ifndef CONFIG_SEC_DISPLAYPORT
 	DP_DEBUG("pps flush for stream:%d\n", panel->stream_id);
+#endif
 }
 
 static void dp_catalog_panel_dhdr_flush(struct dp_catalog_panel *panel)
@@ -1682,8 +1721,14 @@ static void dp_catalog_ctrl_update_vx_px(struct dp_catalog_ctrl *ctrl,
 			value1 = vm_pre_emphasis_hbr_rbr[v_level][p_level];
 		}
 	} else {
+#ifdef CONFIG_SEC_DISPLAYPORT
+		/* board tuned tables from DT, stock values otherwise */
+		value0 = catalog->parser->vm_voltage_swing[v_level][p_level];
+		value1 = catalog->parser->vm_pre_emphasis[v_level][p_level];
+#else
 		value0 = vm_voltage_swing[v_level][p_level];
 		value1 = vm_pre_emphasis[v_level][p_level];
+#endif
 	}
 
 	/* program default setting first */
@@ -2643,6 +2688,10 @@ static int dp_catalog_init(struct device *dev, struct dp_catalog *dp_catalog,
 	int rc = 0;
 	struct dp_catalog_private *catalog = container_of(dp_catalog,
 				struct dp_catalog_private, dp_catalog);
+
+#ifdef CONFIG_SEC_DISPLAYPORT
+	dp_catalog->parser = parser;
+#endif
 
 	switch (parser->hw_cfg.phy_version) {
 	case DP_PHY_VERSION_4_2_0:

@@ -12,3 +12,6 @@ config COMBO_REDRIVER
 	help
 	  If you say yes here you will get support for
 	  the CCIC attached device status change notification.
+
+config COMBO_REDRIVER_PTN36502
+	def_bool COMBO_REDRIVER

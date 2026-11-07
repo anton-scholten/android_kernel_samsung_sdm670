@@ -40,6 +40,9 @@
 #include "sde_connector.h"
 #include "dp_drm.h"
 #include "dp_debug.h"
+#ifdef CONFIG_SEC_DISPLAYPORT
+#include "secdp.h"
+#endif
 
 #define DP_MST_DEBUG(fmt, ...) DP_DEBUG(fmt, ##__VA_ARGS__)
 #define DP_MST_INFO_LOG(fmt, ...) DP_DEBUG(fmt, ##__VA_ARGS__)

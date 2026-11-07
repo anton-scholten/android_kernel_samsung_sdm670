@@ -10,6 +10,12 @@
 
 #include "dp_ctrl.h"
 #include "dp_debug.h"
+#ifdef CONFIG_SEC_DISPLAYPORT
+#ifdef CONFIG_SEC_DISPLAYPORT_BIGDATA
+#include <linux/displayport_bigdata.h>
+#endif
+#include "secdp.h"
+#endif
 
 #define DP_MST_DEBUG(fmt, ...) DP_DEBUG(fmt, ##__VA_ARGS__)
 
@@ -61,6 +67,9 @@ struct dp_ctrl_private {
 	struct dp_power *power;
 	struct dp_parser *parser;
 	struct dp_catalog_ctrl *catalog;
+#ifdef CONFIG_SEC_DISPLAYPORT
+	bool link_train_status;
+#endif
 
 	struct completion idle_comp;
 	struct completion video_comp;
@@ -431,6 +440,11 @@ static int dp_ctrl_link_rate_down_shift(struct dp_ctrl_private *ctrl)
 
 	DP_DEBUG("new bw code=0x%x\n", ctrl->link->link_params.bw_code);
 
+#ifdef CONFIG_SEC_DISPLAYPORT_BIGDATA
+	secdp_bigdata_save_item(BD_CUR_LINK_RATE,
+		ctrl->link->link_params.bw_code);
+#endif
+
 	return ret;
 }
 
@@ -520,8 +534,25 @@ static int dp_ctrl_link_train(struct dp_ctrl_private *ctrl)
 	u8 const encoding = 0x1, downspread = 0x00;
 	struct drm_dp_link link_info = {0};
 
+#ifdef CONFIG_SEC_DISPLAYPORT
+	if (!secdp_get_cable_status()) {
+		DP_INFO("cable is out\n");
+		return -EIO;
+	}
+
+	DP_DEBUG("+++\n");
+	ctrl->link_train_status = false;
+#endif
+
 	ctrl->link->phy_params.p_level = 0;
 	ctrl->link->phy_params.v_level = 0;
+
+#ifdef CONFIG_SEC_DISPLAYPORT
+	if (secdp_check_hmd_dev("PicoVR")) {
+		DP_INFO("pico REAL Plus!\n");
+		ctrl->link->phy_params.v_level = 2;	/*800mV*/
+	}
+#endif
 
 	link_info.num_lanes = ctrl->link->link_params.lane_count;
 	link_info.rate = drm_dp_bw_code_to_link_rate(
@@ -565,11 +596,22 @@ static int dp_ctrl_link_train(struct dp_ctrl_private *ctrl)
 	DP_INFO("link training #2 successful\n");
 
 end:
+#ifdef CONFIG_SEC_DISPLAYPORT
+	if (!secdp_get_cable_status()) {
+		DP_INFO("cable is out <2>\n");
+		return -EIO;
+	}
+#endif
+
 	dp_ctrl_state_ctrl(ctrl, 0);
 	/* Make sure to clear the current pattern before starting a new one */
 	wmb();
 
 	dp_ctrl_clear_training_pattern(ctrl);
+#ifdef CONFIG_SEC_DISPLAYPORT
+	if (!ret)
+		ctrl->link_train_status = true;
+#endif
 	return ret;
 }
 
@@ -592,6 +634,13 @@ static int dp_ctrl_setup_main_link(struct dp_ctrl_private *ctrl)
 				0x01);
 
 	ret = dp_ctrl_link_train(ctrl);
+#ifdef CONFIG_SEC_DISPLAYPORT
+	if (ret) {
+#ifdef CONFIG_SEC_DISPLAYPORT_BIGDATA
+		secdp_bigdata_inc_error_cnt(ERR_LINK_TRAIN);
+#endif
+	}
+#endif
 
 end:
 	return ret;
@@ -684,6 +733,13 @@ static int dp_ctrl_link_setup(struct dp_ctrl_private *ctrl, bool shallow)
 				link_params->lane_count);
 
 	while (1) {
+#ifdef CONFIG_SEC_DISPLAYPORT
+		if (!secdp_get_cable_status()) {
+			DP_INFO("cable is out\n");
+			rc = -EIO;
+			break;
+		}
+#endif
 		DP_DEBUG("bw_code=%d, lane_count=%d\n",
 			link_params->bw_code, link_params->lane_count);
 
@@ -722,6 +778,14 @@ static int dp_ctrl_link_setup(struct dp_ctrl_private *ctrl, bool shallow)
 			rc = 0;
 			break;
 		}
+
+#if defined(CONFIG_SEC_DISPLAYPORT) && !defined(SECDP_AUDIO_CTS)
+		if ((ctrl->link->link_params.bw_code == DP_LINK_BW_1_62 && downgrade) ||
+			!secdp_get_cable_status()) {
+			rc = -EIO;
+			break;
+		}
+#endif
 
 		if (!link_train_max_retries || atomic_read(&ctrl->aborted)) {
 			dp_ctrl_disable_link_clock(ctrl);
@@ -848,6 +912,23 @@ static void dp_ctrl_host_deinit(struct dp_ctrl *dp_ctrl)
 
 	DP_DEBUG("Host deinitialized successfully\n");
 }
+
+#ifdef CONFIG_SEC_DISPLAYPORT
+static bool dp_ctrl_get_link_train_status(struct dp_ctrl *dp_ctrl)
+{
+	struct dp_ctrl_private *ctrl;
+
+	if (!dp_ctrl) {
+		DP_ERR("Invalid input data\n");
+		return -EINVAL;
+	}
+
+	ctrl = container_of(dp_ctrl, struct dp_ctrl_private, dp_ctrl);
+	DP_INFO("link_train_status: %s\n",
+		ctrl->link_train_status ? "success" : "failure");
+	return ctrl->link_train_status;
+}
+#endif
 
 static void dp_ctrl_send_video(struct dp_ctrl_private *ctrl)
 {
@@ -1446,6 +1527,9 @@ struct dp_ctrl *dp_ctrl_get(struct dp_ctrl_in *in)
 	dp_ctrl->stream_off = dp_ctrl_stream_off;
 	dp_ctrl->stream_pre_off = dp_ctrl_stream_pre_off;
 	dp_ctrl->set_mst_channel_info = dp_ctrl_set_mst_channel_info;
+#ifdef CONFIG_SEC_DISPLAYPORT
+	dp_ctrl->get_link_train_status = dp_ctrl_get_link_train_status;
+#endif
 
 	return dp_ctrl;
 error:

@@ -296,6 +296,8 @@ source "drivers/gpu/drm/msm/Kconfig"
 
 source "techpack/display/msm/samsung/Kconfig"
 
+source "techpack/display/msm/dp/Kconfig"
+
 source "drivers/gpu/drm/fsl-dcu/Kconfig"
 
 source "drivers/gpu/drm/tegra/Kconfig"

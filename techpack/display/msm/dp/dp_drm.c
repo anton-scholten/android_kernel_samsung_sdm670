@@ -12,6 +12,10 @@
 #include "sde_connector.h"
 #include "dp_drm.h"
 #include "dp_debug.h"
+#ifdef CONFIG_SEC_DISPLAYPORT
+#include "secdp.h"
+#define DP_ENUM_STR(x)	#x
+#endif
 
 #define DP_MST_DEBUG(fmt, ...) DP_DEBUG(fmt, ##__VA_ARGS__)
 

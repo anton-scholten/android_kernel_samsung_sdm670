@@ -35,6 +35,20 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 
+#ifdef CONFIG_SEC_DISPLAYPORT
+#include <linux/secdp_logger.h>
+
+#ifdef DRM_DEBUG_KMS
+#undef DRM_DEBUG_KMS
+#define DRM_DEBUG_KMS	pr_debug
+#endif
+
+#ifdef DRM_ERROR
+#undef DRM_ERROR
+#define DRM_ERROR	pr_err
+#endif
+#endif
+
 /**
  * DOC: dp mst helper
  *

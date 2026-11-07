@@ -16,6 +16,10 @@
 #include "sde_hdcp_2x.h"
 #include "dp_debug.h"
 
+#ifdef CONFIG_SEC_DISPLAYPORT_ENG
+#include <linux/secdp_logger.h>
+#endif
+
 #define DP_INTR_STATUS2				(0x00000024)
 #define DP_INTR_STATUS3				(0x00000028)
 #define dp_read(offset) readl_relaxed((offset))
@@ -750,6 +754,15 @@ static bool dp_hdcp2p2_supported(void *input)
 		DP_ERR("RxCaps read failed\n");
 		goto error;
 	}
+
+#ifdef CONFIG_SEC_DISPLAYPORT
+{
+	u32 i;
+
+	for (i = 0; i < DP_HDCP_RXCAPS_LENGTH; i++)
+		DP_DEBUG("rxcaps[%d] 0x%x\n", i, buf[i]);
+}
+#endif
 
 	DP_DEBUG("HDCP_CAPABLE=%lu\n", (buf[2] & BIT(1)) >> 1);
 	DP_DEBUG("VERSION=%d\n", buf[0]);
