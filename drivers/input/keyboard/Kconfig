@@ -756,4 +756,12 @@ config KEYBOARD_MTK_PMIC
 	  To compile this driver as a module, choose M here: the
 	  module will be called pmic-keys.
 
+config KEYBOARD_STM32_POGO
+	tristate "Samsung STM32 pogo keyboard support"
+	depends on I2C && MUIC_SUPPORT_KEYBOARDDOCK
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here to support the Samsung pogo keyboard dock driven by an
+	  STM32 microcontroller.
+
 endif

@@ -67,7 +67,7 @@ extern void muic_afc_delay_check_state(int state);
 extern int muic_GPIO_control(int gpio);
 #endif
 
-#if defined(CONFIG_HICCUP_CHARGER)
+#if defined(CONFIG_HICCUP_CHARGER) || defined(CONFIG_MUIC_SUPPORT_KEYBOARDDOCK)
 extern unsigned int lpcharge;
 #endif
 
