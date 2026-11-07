@@ -199,4 +199,11 @@ config FPGA_DFL_PCI
 
 	  To compile this as a module, choose M here.
 
+config POGO_FPGA
+	tristate "Samsung pogo keyboard FPGA"
+	depends on SPI
+	help
+	  Loads the bitstream of the FPGA that drives the pogo pins of the
+	  Samsung Galaxy Tab S5e keyboard dock.
+
 endif # FPGA
