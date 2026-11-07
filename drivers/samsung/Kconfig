@@ -15,3 +15,34 @@ config VBUS_NOTIFIER
 config VBUS_NOTIFIER_WORK
 	bool "Deliver VBUS notifications from a workqueue"
 	depends on VBUS_NOTIFIER
+
+config SEC_GTS4LV_PROJECT
+	bool "Samsung Galaxy Tab S5e (gts4lv) project"
+	depends on ARCH_SDM670
+	help
+	  Enables gts4lv specific tuning in Samsung drivers.
+
+choice
+	prompt "gts4lv variant"
+	depends on SEC_GTS4LV_PROJECT
+	default SEC_GTS4LV_EUR_PROJECT
+	help
+	  Selects the board DT overlays to build. LTE and Wi-Fi boards share
+	  board IDs, so dtbo.img can only hold one variant.
+
+config SEC_GTS4LVWIFI_EUR_PROJECT
+	bool "Wi-Fi (SM-T720)"
+
+config SEC_GTS4LV_EUR_PROJECT
+	bool "LTE EUR"
+
+config SEC_GTS4LV_KOR_PROJECT
+	bool "LTE KOR"
+
+config SEC_GTS4LV_MEA_PROJECT
+	bool "LTE MEA"
+
+config SEC_GTS4LV_USA_PROJECT
+	bool "LTE USA"
+
+endchoice
