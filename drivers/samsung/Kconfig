@@ -5,3 +5,13 @@ config DRV_SAMSUNG
 	help
 	  Creates the "sec" device class (/sys/class/sec) used by Samsung
 	  drivers to expose their factory and feature interfaces.
+
+config VBUS_NOTIFIER
+	bool "VBUS notifier"
+	help
+	  Notifies VBUS status changes between Samsung charger, MUIC and
+	  CCIC drivers.
+
+config VBUS_NOTIFIER_WORK
+	bool "Deliver VBUS notifications from a workqueue"
+	depends on VBUS_NOTIFIER
