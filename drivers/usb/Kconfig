@@ -179,6 +179,10 @@ source "drivers/usb/manager/Kconfig"
 
 source "drivers/usb/notify/Kconfig"
 
+source "drivers/usb/manager/Kconfig"
+
+source "drivers/usb/notify/Kconfig"
+
 source "drivers/usb/pd/Kconfig"
 
 config USB_LED_TRIG

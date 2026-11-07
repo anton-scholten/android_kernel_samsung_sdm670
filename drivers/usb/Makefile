@@ -70,5 +70,7 @@ obj-$(CONFIG_USB_ROLE_SWITCH)	+= roles/
 obj-$(CONFIG_USB_NOTIFY_LAYER)	+= notify/
 obj-$(CONFIG_USB_TYPEC_MANAGER_NOTIFIER)	+= manager/
 obj-$(CONFIG_USB_NOTIFY_LAYER)	+= notify/
+obj-$(CONFIG_USB_TYPEC_MANAGER_NOTIFIER)	+= manager/
+obj-$(CONFIG_USB_NOTIFY_LAYER)	+= notify/
 
 obj-$(CONFIG_USB_PD)		+= pd/
