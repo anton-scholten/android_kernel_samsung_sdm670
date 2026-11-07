@@ -195,3 +195,5 @@ obj-$(CONFIG_SENSORS_SSC)	+= sensors/
 obj-$(CONFIG_DRV_SAMSUNG)	+= samsung/
 obj-$(CONFIG_USE_MUIC)		+= muic/
 obj-$(CONFIG_USE_MUIC)		+= muic/
+obj-$(CONFIG_USE_MUIC)		+= muic/
+obj-$(CONFIG_CCIC_NOTIFIER)	+= ccic/

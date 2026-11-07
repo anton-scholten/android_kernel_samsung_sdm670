@@ -239,5 +239,11 @@ source "drivers/muic/Kconfig"
 
 source "drivers/muic/universal/Kconfig"
 
+source "drivers/ccic/Kconfig"
+
+source "drivers/muic/Kconfig"
+
+source "drivers/muic/universal/Kconfig"
+
 source "drivers/muic/Kconfig"
 endmenu
