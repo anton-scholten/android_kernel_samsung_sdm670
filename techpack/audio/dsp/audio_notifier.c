@@ -591,6 +591,10 @@ static int __init audio_notifier_subsys_init(void)
 
 	return 0;
 }
+#ifndef MODULE
+/* built-in clients such as LPI pinctrl register before module_init */
+subsys_initcall(audio_notifier_subsys_init);
+#endif
 
 static int __init audio_notifier_late_init(void)
 {
@@ -611,7 +615,9 @@ static int __init audio_notifier_init(void)
 {
 	int ret;
 
+#ifdef MODULE
 	audio_notifier_subsys_init();
+#endif
 
 	ret = audio_pdr_register(&pdr_nb);
 	if (ret < 0) {
@@ -628,7 +634,9 @@ static int __init audio_notifier_init(void)
 #else
 static int __init audio_notifier_init(void)
 {
+#ifdef MODULE
 	audio_notifier_subsys_init();
+#endif
 	audio_notifer_disable_service(AUDIO_NOTIFIER_PDR_SERVICE);
 
 	audio_notifier_late_init();
