@@ -1902,10 +1902,22 @@ static int spi_geni_suspend(struct device *dev)
 	struct spi_geni_master *geni_mas = spi_master_get_devdata(spi);
 
 	if (!pm_runtime_status_suspended(dev)) {
-		GENI_SE_ERR(geni_mas->ipc, true, dev,
-			":%s: runtime PM is active\n", __func__);
-		ret = -EBUSY;
-		return ret;
+		/*
+		 * A client may have used the bus from its own suspend
+		 * callback, leaving us within the autosuspend delay.
+		 */
+		if (!list_empty(&spi->queue) || spi->cur_msg) {
+			GENI_SE_ERR(geni_mas->ipc, true, dev,
+				":%s: runtime PM is active\n", __func__);
+			return -EBUSY;
+		}
+
+		ret = spi_geni_runtime_suspend(dev);
+		if (ret)
+			return ret;
+		pm_runtime_disable(dev);
+		pm_runtime_set_suspended(dev);
+		pm_runtime_enable(dev);
 	}
 
 	GENI_SE_ERR(geni_mas->ipc, true, dev, ":%s: End\n", __func__);
