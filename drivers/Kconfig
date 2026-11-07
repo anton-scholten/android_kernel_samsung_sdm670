@@ -236,4 +236,8 @@ source "drivers/energy_model/Kconfig"
 source "drivers/samsung/Kconfig"
 
 source "drivers/muic/Kconfig"
+
+source "drivers/muic/universal/Kconfig"
+
+source "drivers/muic/Kconfig"
 endmenu
