@@ -243,6 +243,8 @@ source "drivers/ccic/Kconfig"
 
 source "drivers/redriver/Kconfig"
 
+source "drivers/battery_v2/Kconfig"
+
 source "drivers/muic/Kconfig"
 
 source "drivers/muic/universal/Kconfig"
