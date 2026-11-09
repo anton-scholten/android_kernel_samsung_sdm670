@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+ifeq ($(CONFIG_ARCH_SDM670), y)
+include $(srctree)/techpack/camera-legacy/config/sdm670camera.conf
+LINUXINCLUDE    += \
+		-include $(srctree)/techpack/camera-legacy/config/sdm670cameraconf.h
+endif
+
 ifdef CONFIG_SPECTRA_CAMERA_LEGACY
 # Use USERINCLUDE when you must reference the UAPI directories only.
 USERINCLUDE     += \
