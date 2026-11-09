@@ -574,6 +574,7 @@ static struct i2c_driver cam_eeprom_i2c_driver = {
 	.remove = cam_eeprom_i2c_driver_remove,
 	.driver = {
 		.name = "msm_eeprom",
+		.of_match_table = cam_eeprom_dt_match,
 	},
 };
 
