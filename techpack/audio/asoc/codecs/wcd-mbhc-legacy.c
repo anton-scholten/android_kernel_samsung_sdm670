@@ -17,6 +17,7 @@
 #include <linux/input.h>
 #include <linux/firmware.h>
 #include <linux/completion.h>
+#include <linux/iio/consumer.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
 #include "wcd-mbhc-legacy.h"
@@ -25,6 +26,28 @@
 static int det_extn_cable_en;
 module_param(det_extn_cable_en, int, 0664);
 MODULE_PARM_DESC(det_extn_cable_en, "enable/disable extn cable detect");
+
+static enum wcd_mbhc_plug_type wcd_mbhc_earjack_plug_type(
+						struct wcd_mbhc *mbhc)
+{
+	int i, ret, uv;
+
+	msleep(mbhc->det_debounce_ms);
+
+	ret = iio_read_channel_processed(mbhc->earjack_chan, &uv);
+	if (ret < 0) {
+		pr_err("%s: earjack ADC read failed: %d\n", __func__, ret);
+		return MBHC_PLUG_TYPE_INVALID;
+	}
+
+	pr_debug("%s: adc %d mV\n", __func__, uv / 1000);
+
+	for (i = 0; i < WCD_MBHC_JACK_ZONES; i++)
+		if (uv / 1000 <= mbhc->jack_zones[i].adc_high)
+			return mbhc->jack_zones[i].jack_type;
+
+	return MBHC_PLUG_TYPE_INVALID;
+}
 
 static bool wcd_mbhc_detect_anc_plug_type(struct wcd_mbhc *mbhc)
 {
@@ -472,7 +495,9 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	WCD_MBHC_REG_READ(WCD_MBHC_BTN_RESULT, btn_result);
 	WCD_MBHC_REG_READ(WCD_MBHC_HS_COMP_RESULT, hs_comp_res);
 
-	if (!rc) {
+	if (mbhc->earjack_chan) {
+		plug_type = wcd_mbhc_earjack_plug_type(mbhc);
+	} else if (!rc) {
 		pr_debug("%s No btn press interrupt\n", __func__);
 		if (!btn_result && !hs_comp_res)
 			plug_type = MBHC_PLUG_TYPE_HEADSET;
@@ -567,6 +592,22 @@ correct_plug_type:
 		pr_debug("%s: hs_comp_res: %x\n", __func__, hs_comp_res);
 		if (mbhc->mbhc_cb->hph_pa_on_status)
 			is_pa_on = mbhc->mbhc_cb->hph_pa_on_status(component);
+
+		if (mbhc->earjack_chan) {
+			if (plug_type == MBHC_PLUG_TYPE_GND_MIC_SWAP &&
+			    mbhc->mbhc_cfg->swap_gnd_mic &&
+			    mbhc->mbhc_cfg->swap_gnd_mic(component, true))
+				pr_debug("%s: US_EU gpio present, flip switch\n",
+					 __func__);
+
+			plug_type = wcd_mbhc_earjack_plug_type(mbhc);
+			if (plug_type == MBHC_PLUG_TYPE_HEADSET) {
+				pr_debug("%s: cable is headset\n", __func__);
+				goto report;
+			}
+			wrk_complete = plug_type == MBHC_PLUG_TYPE_HIGH_HPH;
+			continue;
+		}
 
 		/*
 		 * instead of hogging system by contineous polling, wait for
@@ -700,7 +741,7 @@ correct_plug_type:
 	}
 
 	if (plug_type == MBHC_PLUG_TYPE_HIGH_HPH &&
-		(!det_extn_cable_en)) {
+		!det_extn_cable_en && !mbhc->earjack_chan) {
 		if (wcd_is_special_headset(mbhc)) {
 			pr_debug("%s: Special headset found %d\n",
 					__func__, plug_type);

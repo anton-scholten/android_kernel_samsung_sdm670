@@ -17,6 +17,7 @@
 #include <linux/input.h>
 #include <linux/firmware.h>
 #include <linux/completion.h>
+#include <linux/iio/consumer.h>
 #include <linux/soc/qcom/fsa4480-i2c.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
@@ -1993,6 +1994,50 @@ EXPORT_SYMBOL(wcd_mbhc_stop);
  *
  * NOTE: mbhc->mbhc_cfg is not YET configure so shouldn't be used
  */
+static int wcd_mbhc_init_earjack_adc(struct wcd_mbhc *mbhc,
+				     struct device *dev)
+{
+	struct of_phandle_args args;
+	int i, ret;
+
+	if (mbhc->earjack_chan)
+		return 0;
+
+	if (!of_find_property(dev->of_node, "det-zones-list", NULL))
+		return 0;
+
+	for (i = 0; i < WCD_MBHC_JACK_ZONES; i++) {
+		ret = of_parse_phandle_with_args(dev->of_node,
+				"det-zones-list", "#list-det-cells", i, &args);
+		if (ret || args.args_count < 2) {
+			dev_err(dev, "%s: invalid det-zones-list entry %d\n",
+				__func__, i);
+			return ret ?: -EINVAL;
+		}
+		of_node_put(args.np);
+		mbhc->jack_zones[i].adc_high = args.args[0];
+		mbhc->jack_zones[i].jack_type = args.args[1];
+	}
+
+	if (of_property_read_u32(dev->of_node, "qcom,det_debounce_time_ms",
+				 &mbhc->det_debounce_ms))
+		mbhc->det_debounce_ms = 50;
+
+	mbhc->earjack_chan = devm_iio_channel_get(dev, "earjack");
+	if (IS_ERR(mbhc->earjack_chan)) {
+		ret = PTR_ERR(mbhc->earjack_chan);
+		mbhc->earjack_chan = NULL;
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "%s: failed to get earjack ADC: %d\n",
+				__func__, ret);
+		return ret;
+	}
+
+	dev_dbg(dev, "%s: using earjack ADC, debounce %u ms\n", __func__,
+		mbhc->det_debounce_ms);
+	return 0;
+}
+
 int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_component *component,
 		      const struct wcd_mbhc_cb *mbhc_cb,
 		      const struct wcd_mbhc_intr *mbhc_cdc_intr_ids,
@@ -2051,6 +2096,10 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_component *component,
 		mbhc->moist_iref = hph_moist_config[1];
 		mbhc->moist_rref = hph_moist_config[2];
 	}
+
+	ret = wcd_mbhc_init_earjack_adc(mbhc, card->dev);
+	if (ret)
+		goto err;
 
 	mbhc->in_swch_irq_handler = false;
 	mbhc->current_plug = MBHC_PLUG_TYPE_NONE;

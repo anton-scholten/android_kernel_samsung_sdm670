@@ -534,6 +534,16 @@ struct wcd_mbhc_cb {
 	void (*mbhc_moisture_detect_en)(struct wcd_mbhc *mbhc, bool enable);
 };
 
+#define WCD_MBHC_JACK_ZONES 4
+
+/* Plug type for jack ADC readings up to adc_high mV */
+struct wcd_mbhc_jack_zone {
+	u32 adc_high;
+	u32 jack_type;
+};
+
+struct iio_channel;
+
 struct wcd_mbhc_fn {
 	irqreturn_t (*wcd_mbhc_hs_ins_irq)(int irq, void *data);
 	irqreturn_t (*wcd_mbhc_hs_rem_irq)(int irq, void *data);
@@ -633,6 +643,11 @@ struct wcd_mbhc {
 	bool force_linein;
 	struct device_node *fsa_np;
 	struct notifier_block fsa_nb;
+
+	/* Plug type detection with an external jack ADC */
+	struct iio_channel *earjack_chan;
+	u32 det_debounce_ms;
+	struct wcd_mbhc_jack_zone jack_zones[WCD_MBHC_JACK_ZONES];
 };
 
 void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
