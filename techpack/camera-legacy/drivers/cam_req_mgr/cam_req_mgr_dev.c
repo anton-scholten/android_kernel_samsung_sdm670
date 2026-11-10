@@ -419,11 +419,30 @@ static long cam_private_ioctl(struct file *file, void *fh,
 
 	case CAM_REQ_MGR_SCHED_REQ: {
 		struct cam_req_mgr_sched_request sched_req;
+		/* Layout used by older (e.g. Samsung 4.9) camx userspace */
+		struct {
+			int32_t session_hdl;
+			int32_t link_hdl;
+			int32_t bubble_enable;
+			int32_t sync_mode;
+			int64_t req_id;
+		} legacy_req;
 
-		if (k_ioctl->size != sizeof(sched_req))
+		if (k_ioctl->size == sizeof(legacy_req)) {
+			if (copy_from_user(&legacy_req,
+				u64_to_user_ptr(k_ioctl->handle),
+				sizeof(legacy_req)))
+				return -EFAULT;
+
+			memset(&sched_req, 0, sizeof(sched_req));
+			sched_req.session_hdl = legacy_req.session_hdl;
+			sched_req.link_hdl = legacy_req.link_hdl;
+			sched_req.bubble_enable = legacy_req.bubble_enable;
+			sched_req.sync_mode = legacy_req.sync_mode;
+			sched_req.req_id = legacy_req.req_id;
+		} else if (k_ioctl->size != sizeof(sched_req)) {
 			return -EINVAL;
-
-		if (copy_from_user(&sched_req,
+		} else if (copy_from_user(&sched_req,
 			u64_to_user_ptr(k_ioctl->handle),
 			sizeof(struct cam_req_mgr_sched_request))) {
 			return -EFAULT;
@@ -545,12 +564,32 @@ static long cam_private_ioctl(struct file *file, void *fh,
 		}
 		break;
 	case CAM_REQ_MGR_LINK_CONTROL: {
-		struct cam_req_mgr_link_control cmd;
+		struct cam_req_mgr_link_control cmd = {0};
+		/* Older userspace (4.9-era camx) has no init_timeout */
+		struct {
+			int32_t ops;
+			int32_t session_hdl;
+			int32_t num_links;
+			int32_t reserved;
+			int32_t link_hdls[MAX_LINKS_PER_SESSION];
+		} legacy;
 
-		if (k_ioctl->size != sizeof(cmd))
+		if (k_ioctl->size == sizeof(legacy)) {
+			if (copy_from_user(&legacy,
+				u64_to_user_ptr(k_ioctl->handle),
+				sizeof(legacy))) {
+				rc = -EFAULT;
+				break;
+			}
+			cmd.ops = legacy.ops;
+			cmd.session_hdl = legacy.session_hdl;
+			cmd.num_links = legacy.num_links;
+			cmd.reserved = legacy.reserved;
+			memcpy(cmd.link_hdls, legacy.link_hdls,
+				sizeof(cmd.link_hdls));
+		} else if (k_ioctl->size != sizeof(cmd)) {
 			return -EINVAL;
-
-		if (copy_from_user(&cmd,
+		} else if (copy_from_user(&cmd,
 			u64_to_user_ptr(k_ioctl->handle),
 			sizeof(struct cam_req_mgr_link_control))) {
 			rc = -EFAULT;
