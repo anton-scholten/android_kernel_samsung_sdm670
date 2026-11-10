@@ -21,7 +21,7 @@
 #include <linux/msm-bus.h>
 #include <linux/msm-bus-board.h>
 #include <linux/regulator/consumer.h>
-#ifdef CONFIG_ARCH_SDM845
+#if defined(CONFIG_ARCH_SDM845) || defined(CONFIG_ARCH_SDM670)
 #include <media/msm_media_info_legacy.h>
 #else
 #include <media/msm_media_info.h>

@@ -6,7 +6,7 @@
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
 #include <uapi/drm/drm_fourcc.h>
-#ifdef CONFIG_ARCH_SDM845
+#if defined(CONFIG_ARCH_SDM845) || defined(CONFIG_ARCH_SDM670)
 #include <uapi/media/msm_media_info_legacy.h>
 #else
 #include <uapi/media/msm_media_info.h>
