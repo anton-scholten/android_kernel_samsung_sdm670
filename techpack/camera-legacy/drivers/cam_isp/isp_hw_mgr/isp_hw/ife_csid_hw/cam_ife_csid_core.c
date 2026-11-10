@@ -2536,6 +2536,7 @@ static int cam_ife_csid_init_config_rdi_path(
 	struct cam_hw_soc_info                 *soc_info;
 	uint32_t path_format = 0, plain_fmt = 0, val = 0, id;
 	uint32_t format_measure_addr, camera_hw_version;
+	bool can_pack;
 	uint32_t packing_fmt = 0, in_bpp = 0;
 
 	path_data = (struct cam_ife_csid_path_cfg *) res->res_priv;
@@ -2549,9 +2550,26 @@ static int cam_ife_csid_init_config_rdi_path(
 		return -EINVAL;
 	}
 
+	rc = cam_cpas_get_cpas_hw_version(&camera_hw_version);
+	if (rc) {
+		CAM_ERR(CAM_ISP, "Failed to get HW version rc:%d", rc);
+		camera_hw_version = 0;
+	}
+	CAM_DBG(CAM_ISP, "HW version: %x", camera_hw_version);
+
+	/*
+	 * Only these versions can repack decoded data, so only they may
+	 * decode for crop/drop. Older ones would emit plain 8-bit samples
+	 * instead of the requested MIPI packed format.
+	 */
+	can_pack = camera_hw_version == CAM_CPAS_TITAN_480_V100 ||
+		camera_hw_version == CAM_CPAS_TITAN_175_V130 ||
+		camera_hw_version == CAM_CPAS_TITAN_170_V200;
+
 	rc = cam_ife_csid_get_format_rdi(path_data->in_format,
 		path_data->out_format, &path_format, &plain_fmt, &packing_fmt,
-		path_data->crop_enable || path_data->drop_enable, &in_bpp);
+		can_pack && (path_data->crop_enable ||
+		path_data->drop_enable), &in_bpp);
 	if (rc)
 		return rc;
 
@@ -2570,16 +2588,7 @@ static int cam_ife_csid_init_config_rdi_path(
 		csid_reg->cmn_reg->crop_v_en_shift_val) |
 		(1 << 2) | 3;
 
-	rc = cam_cpas_get_cpas_hw_version(&camera_hw_version);
-	if (rc) {
-		CAM_ERR(CAM_ISP, "Failed to get HW version rc:%d", rc);
-		camera_hw_version = 0;
-	}
-	CAM_DBG(CAM_ISP, "HW version: %x", camera_hw_version);
-
-	if (camera_hw_version == CAM_CPAS_TITAN_480_V100 ||
-		camera_hw_version == CAM_CPAS_TITAN_175_V130 ||
-		camera_hw_version == CAM_CPAS_TITAN_170_V200) {
+	if (can_pack) {
 		val |= (path_data->drop_enable <<
 			csid_reg->cmn_reg->drop_h_en_shift_val) |
 			(path_data->drop_enable <<
