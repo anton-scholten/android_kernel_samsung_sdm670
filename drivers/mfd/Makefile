@@ -5,6 +5,9 @@
 
 88pm860x-objs			:= 88pm860x-core.o 88pm860x-i2c.o
 obj-$(CONFIG_MFD_88PM860X)	+= 88pm860x.o
+obj-$(CONFIG_MFD_CS35L41)	+= cs35l41-core.o cs35l41-tables.o cs35l41-cal.o cs35l41-bd.o cs35l41-pwr.o cirrus-cal.o cirrus-bd.o cirrus-amp.o cirrus-pwr.o
+obj-$(CONFIG_MFD_CS35L41_SPI)	+= cs35l41-spi.o
+obj-$(CONFIG_MFD_CS35L41_I2C)	+= cs35l41-i2c.o
 obj-$(CONFIG_MFD_88PM800)	+= 88pm800.o 88pm80x.o
 obj-$(CONFIG_MFD_88PM805)	+= 88pm805.o 88pm80x.o
 obj-$(CONFIG_MFD_ACT8945A)	+= act8945a.o
