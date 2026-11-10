@@ -14,6 +14,9 @@
 #include "codecs/sdm660_cdc/msm-analog-cdc.h"
 #include "codecs/msm_sdw/msm_sdw.h"
 #include <linux/pm_qos.h>
+#ifdef CONFIG_SND_SOC_CS35L41
+#include <linux/mfd/cs35l41/big_data.h>
+#endif
 
 #define __CHIPSET__ "SDM660 "
 #define MSM_DAILINK_NAME(name) (__CHIPSET__#name)
@@ -412,6 +415,31 @@ static int int_mi2s_ch_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+#ifdef CONFIG_SND_SOC_CS35L41
+/* Store the amp big data (cirrus-bd) of each speaker before power down */
+static int cs35l41_speaker_event(struct snd_soc_dapm_widget *w,
+				 struct snd_kcontrol *kcontrol, int event)
+{
+	static const struct {
+		const char *name;
+		const char *suffix;
+	} spk[] = {
+		{ "RR SPK", "_r" }, { "RL SPK", "" },
+		{ "FR SPK", "_br" }, { "FL SPK", "_b" },
+	};
+	int i;
+
+	if (event != SND_SOC_DAPM_PRE_PMD)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(spk); i++)
+		if (!strcmp(w->name, spk[i].name))
+			cirrus_bd_store_values(spk[i].suffix);
+
+	return 0;
+}
+#endif
+
 static const struct snd_soc_dapm_widget msm_int_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("INT_MCLK0", -1, SND_SOC_NOPM, 0, 0,
 	msm_int_mclk0_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
@@ -422,6 +450,12 @@ static const struct snd_soc_dapm_widget msm_int_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Digital Mic2", msm_dmic_event),
 	SND_SOC_DAPM_MIC("Digital Mic3", msm_dmic_event),
 	SND_SOC_DAPM_MIC("Digital Mic4", msm_dmic_event),
+#ifdef CONFIG_SND_SOC_CS35L41
+	SND_SOC_DAPM_SPK("RR SPK", cs35l41_speaker_event),
+	SND_SOC_DAPM_SPK("RL SPK", cs35l41_speaker_event),
+	SND_SOC_DAPM_SPK("FR SPK", cs35l41_speaker_event),
+	SND_SOC_DAPM_SPK("FL SPK", cs35l41_speaker_event),
+#endif
 };
 
 static int msm_config_hph_compander_gpio(bool enable,
@@ -1290,6 +1324,12 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_ignore_suspend(dapm, "AMIC1");
 	snd_soc_dapm_ignore_suspend(dapm, "AMIC2");
 	snd_soc_dapm_ignore_suspend(dapm, "AMIC3");
+#ifdef CONFIG_SND_SOC_CS35L41
+	snd_soc_dapm_ignore_suspend(dapm, "RR SPK");
+	snd_soc_dapm_ignore_suspend(dapm, "RL SPK");
+	snd_soc_dapm_ignore_suspend(dapm, "FR SPK");
+	snd_soc_dapm_ignore_suspend(dapm, "FL SPK");
+#endif
 	snd_soc_dapm_sync(dapm);
 
 	dapm = snd_soc_component_get_dapm(dig_cdc);
@@ -1464,6 +1504,41 @@ static struct snd_soc_ops msm_tdm_be_ops = {
 	.shutdown = msm_tdm_snd_shutdown,
 	.hw_params = msm_tdm_snd_hw_params,
 };
+
+#ifdef CONFIG_SND_SOC_CS35L41
+static int sdm710_tdm_cirrus_init(struct snd_soc_pcm_runtime *rtd)
+{
+	static const char * const widgets[] = {
+		"AMP Capture", "AMP Playback", "AMP SPK", "VP", "VBST",
+		"ISENSE", "VSENSE", "TEMP",
+	};
+	char name[32];
+	int i, j;
+
+	for (i = 0; i < rtd->num_codecs; i++) {
+		struct snd_soc_component *component =
+			rtd->codec_dais[i]->component;
+		struct snd_soc_dapm_context *dapm =
+			snd_soc_component_get_dapm(component);
+
+		for (j = 0; j < ARRAY_SIZE(widgets); j++) {
+			snprintf(name, sizeof(name), "%s %s",
+				 component->name_prefix, widgets[j]);
+			snd_soc_dapm_ignore_suspend(dapm, name);
+		}
+		snd_soc_dapm_sync(dapm);
+	}
+
+	return 0;
+}
+
+static struct snd_soc_dai_link_component cs35l41_spk[] = {
+	{ .name = "cs35l41-codec.1.auto", .dai_name = "cs35l41-pcm" },
+	{ .name = "cs35l41-codec.5.auto", .dai_name = "cs35l41-pcm" },
+	{ .name = "cs35l41-codec.9.auto", .dai_name = "cs35l41-pcm" },
+	{ .name = "cs35l41-codec.13.auto", .dai_name = "cs35l41-pcm" },
+};
+#endif
 
 static struct snd_soc_ops msm_wcn_ops = {
 	.hw_params = msm_wcn_hw_params,
@@ -2510,8 +2585,16 @@ static struct snd_soc_dai_link msm_int_be_dai[] = {
 		.stream_name = "Secondary TDM0 Playback",
 		.cpu_dai_name = "msm-dai-q6-tdm.36880",
 		.platform_name = "msm-pcm-routing",
+#ifdef CONFIG_SND_SOC_CS35L41
+		.codecs = cs35l41_spk,
+		.num_codecs = ARRAY_SIZE(cs35l41_spk),
+		.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_CBS_CFS |
+			   SND_SOC_DAIFMT_IB_NF,
+		.init = &sdm710_tdm_cirrus_init,
+#else
 		.codec_name = "msm-stub-codec.1",
 		.codec_dai_name = "msm-stub-rx",
+#endif
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.id = MSM_BACKEND_DAI_SEC_TDM_RX_0,
@@ -2525,8 +2608,15 @@ static struct snd_soc_dai_link msm_int_be_dai[] = {
 		.stream_name = "Secondary TDM0 Capture",
 		.cpu_dai_name = "msm-dai-q6-tdm.36881",
 		.platform_name = "msm-pcm-routing",
+#ifdef CONFIG_SND_SOC_CS35L41
+		.codecs = cs35l41_spk,
+		.num_codecs = ARRAY_SIZE(cs35l41_spk),
+		.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_CBS_CFS |
+			   SND_SOC_DAIFMT_IB_NF,
+#else
 		.codec_name = "msm-stub-codec.1",
 		.codec_dai_name = "msm-stub-tx",
+#endif
 		.no_pcm = 1,
 		.dpcm_capture = 1,
 		.id = MSM_BACKEND_DAI_SEC_TDM_TX_0,

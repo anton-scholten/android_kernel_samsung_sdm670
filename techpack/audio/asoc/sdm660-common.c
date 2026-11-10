@@ -13,6 +13,18 @@
 #include <dsp/audio_notifier.h>
 #include "msm-pcm-routing-v2.h"
 #include <asoc/sdm660-common.h>
+
+#ifdef CONFIG_SND_SOC_CS35L41
+#define CS35L41_CLK_SRC_SCLK 0
+
+/* MFD cell instance names of the four amps (RR, RL, FR, FL) */
+static struct snd_soc_codec_conf cs35l41_conf[] = {
+	{ .dev_name = "cs35l41-codec.1.auto", .name_prefix = "RR" },
+	{ .dev_name = "cs35l41-codec.5.auto", .name_prefix = "RL" },
+	{ .dev_name = "cs35l41-codec.9.auto", .name_prefix = "FR" },
+	{ .dev_name = "cs35l41-codec.13.auto", .name_prefix = "FL" },
+};
+#endif
 #include <asoc/sdm660-internal.h>
 #include <asoc/sdm660-external.h>
 #include <asoc/msm-cdc-pinctrl.h>
@@ -1139,6 +1151,29 @@ int msm_tdm_snd_hw_params(struct snd_pcm_substream *substream,
 		pr_err("%s: failed to set tdm clk, err:%d\n",
 			__func__, ret);
 	}
+
+#ifdef CONFIG_SND_SOC_CS35L41
+	for (i = 0; i < rtd->num_codecs; i++) {
+		struct snd_soc_dai *codec_dai = rtd->codec_dais[i];
+
+		if (strcmp(codec_dai->driver->name, "cs35l41-pcm"))
+			continue;
+
+		ret = snd_soc_dai_set_sysclk(codec_dai, 0, clk_freq,
+					     SND_SOC_CLOCK_IN);
+		if (ret < 0)
+			pr_err("%s: failed to set codec tdm clk, err:%d\n",
+				__func__, ret);
+
+		ret = snd_soc_component_set_sysclk(codec_dai->component,
+						   CS35L41_CLK_SRC_SCLK, 0,
+						   clk_freq, SND_SOC_CLOCK_IN);
+		if (ret < 0)
+			pr_err("%s: failed to set codec sclk, err:%d\n",
+				__func__, ret);
+	}
+	ret = 0;
+#endif
 
 end:
 	return ret;
@@ -5490,6 +5525,11 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 		if (ret)
 			goto err;
 	}
+
+#ifdef CONFIG_SND_SOC_CS35L41
+	card->codec_conf = cs35l41_conf;
+	card->num_configs = ARRAY_SIZE(cs35l41_conf);
+#endif
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret == -EPROBE_DEFER) {
