@@ -191,6 +191,8 @@ struct cam_eeprom_ctrl_t {
 	struct i2c_settings_array wr_settings;
 	struct eebin_info eebin_info;
 	uint32_t open_cnt;
+	bool addressed_map;
+	uint32_t map_base;
 };
 
 int32_t cam_eeprom_update_i2c_info(struct cam_eeprom_ctrl_t *e_ctrl,

@@ -24,6 +24,30 @@
  * This function iterates through blocks stored in block->map, reads each
  * region and concatenate them into the pre-allocated block->mapdata
  */
+/*
+ * Samsung camx expects every memory block at its EEPROM address, with
+ * overlapping blocks sharing data, so the buffer spans the address range
+ * instead of the sum of all block sizes.
+ */
+static void cam_eeprom_calc_addressed_size(struct cam_eeprom_ctrl_t *e_ctrl)
+{
+	struct cam_eeprom_memory_map_t *map = e_ctrl->cal_data.map;
+	uint32_t lo = UINT_MAX, hi = 0, i;
+
+	for (i = 0; i < e_ctrl->cal_data.num_map; i++) {
+		if (!map[i].mem.valid_size)
+			continue;
+		lo = min(lo, map[i].mem.addr);
+		hi = max(hi, map[i].mem.addr + map[i].mem.valid_size);
+	}
+
+	if (hi <= lo)
+		return;
+
+	e_ctrl->map_base = lo;
+	e_ctrl->cal_data.num_data = hi - lo;
+}
+
 static int cam_eeprom_read_memory(struct cam_eeprom_ctrl_t *e_ctrl,
 	struct cam_eeprom_memory_block_t *block)
 {
@@ -101,6 +125,14 @@ static int cam_eeprom_read_memory(struct cam_eeprom_ctrl_t *e_ctrl,
 					rc);
 				return rc;
 			}
+		}
+
+		if (emap[j].mem.valid_size && e_ctrl->addressed_map) {
+			/* Samsung layout: blocks live at their EEPROM address */
+			memptr = block->mapdata + emap[j].mem.addr -
+				e_ctrl->map_base;
+			if (!emap[j].mem.data_type)
+				continue;
 		}
 
 		if (emap[j].mem.valid_size) {
@@ -1287,6 +1319,9 @@ static int32_t cam_eeprom_pkt_parse(struct cam_eeprom_ctrl_t *e_ctrl, void *arg)
 			cam_mem_put_cpu_buf(dev_config.packet_handle);
 			return rc;
 		}
+
+		if (e_ctrl->addressed_map)
+			cam_eeprom_calc_addressed_size(e_ctrl);
 
 		e_ctrl->cal_data.mapdata =
 			vzalloc(e_ctrl->cal_data.num_data);

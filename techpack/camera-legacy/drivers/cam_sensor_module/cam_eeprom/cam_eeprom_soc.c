@@ -304,6 +304,9 @@ int cam_eeprom_parse_dt(struct cam_eeprom_ctrl_t *e_ctrl)
 
 	of_node = soc_info->dev->of_node;
 
+	e_ctrl->addressed_map = of_property_read_bool(of_node,
+		"samsung,eeprom-addressed-map");
+
 	if (of_property_read_bool(of_node, "multimodule-support")) {
 		CAM_DBG(CAM_UTIL, "Multi Module is Supported");
 		e_ctrl->is_multimodule_mode = true;
