@@ -75,6 +75,8 @@ static struct cam_vfe_camif_reg_data vfe_170_camif_reg_data = {
 	.eof_irq_mask                    = 0x00000002,
 	.error_irq_mask0                 = 0x0003FC00,
 	.error_irq_mask1                 = 0x0FFF7E80,
+	.subscribe_irq_mask0             = 0x00000017,
+	.subscribe_irq_mask1             = 0x0,
 	.enable_diagnostic_hw            = 0x1,
 };
 
