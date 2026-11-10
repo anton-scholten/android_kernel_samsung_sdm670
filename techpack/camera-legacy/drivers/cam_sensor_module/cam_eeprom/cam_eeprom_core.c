@@ -114,6 +114,8 @@ static int cam_eeprom_read_memory(struct cam_eeprom_ctrl_t *e_ctrl,
 					rc);
 				return rc;
 			}
+			/* I2C (QUP) reads return the number of messages */
+			rc = 0;
 			memptr += emap[j].mem.valid_size;
 		}
 
