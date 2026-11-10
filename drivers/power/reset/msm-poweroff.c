@@ -495,7 +495,13 @@ static void msm_restart_prepare(const char *cmd)
 	else
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
 
-	if (cmd != NULL) {
+	if (cmd == NULL || cmd[0] == '\0' || !strcmp(cmd, "adb") ||
+	    !strcmp(cmd, "shell") || !strcmp(cmd, "from_fastboot") ||
+	    !strncmp(cmd, "userrequested", 13)) {
+		/* Samsung bootloaders keep the last PON reason otherwise */
+		qpnp_pon_set_restart_reason(PON_RESTART_REASON_NORMALBOOT);
+		__raw_writel(0, restart_reason);
+	} else {
 		if (!strncmp(cmd, "bootloader", 10)) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_BOOTLOADER);
