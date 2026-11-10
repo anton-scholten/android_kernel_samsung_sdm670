@@ -3138,6 +3138,32 @@ end:
 	return rc;
 }
 
+static void cam_vfe_bus_ubwc_cfg_from_plane(
+	struct cam_vfe_bus_ver2_wm_resource_data *wm_data,
+	struct cam_plane_cfg *plane)
+{
+	if (!wm_data->init_cfg_done ||
+		wm_data->packer_cfg != plane->packer_config ||
+		(!wm_data->is_dual &&
+		(wm_data->tile_cfg != plane->tile_config ||
+		wm_data->h_init != plane->h_init)) ||
+		wm_data->v_init != plane->v_init ||
+		wm_data->ubwc_meta_stride != plane->meta_stride ||
+		wm_data->ubwc_mode_cfg_0 != plane->mode_config ||
+		wm_data->ubwc_meta_offset != plane->meta_offset)
+		wm_data->ubwc_updated = true;
+
+	wm_data->packer_cfg = plane->packer_config;
+	if (!wm_data->is_dual) {
+		wm_data->tile_cfg = plane->tile_config;
+		wm_data->h_init = plane->h_init;
+	}
+	wm_data->v_init = plane->v_init;
+	wm_data->ubwc_meta_stride = plane->meta_stride;
+	wm_data->ubwc_mode_cfg_0 = plane->mode_config;
+	wm_data->ubwc_meta_offset = plane->meta_offset;
+}
+
 static int cam_vfe_bus_update_wm(void *priv, void *cmd_args,
 	uint32_t arg_size)
 {
@@ -3217,6 +3243,16 @@ static int cam_vfe_bus_update_wm(void *priv, void *cmd_args,
 					"No UBWC register to configure.");
 				return -EINVAL;
 			}
+			/*
+			 * Older userspace passes the UBWC config in the
+			 * plane config instead of a UBWC_CONFIG blob.
+			 */
+			if (io_cfg->planes[i].mode_config ||
+				io_cfg->planes[i].packer_config ||
+				io_cfg->planes[i].tile_config)
+				cam_vfe_bus_ubwc_cfg_from_plane(wm_data,
+					&io_cfg->planes[i]);
+
 			if (wm_data->ubwc_updated) {
 				wm_data->ubwc_updated = false;
 				cam_vfe_bus_update_ubwc_regs(
