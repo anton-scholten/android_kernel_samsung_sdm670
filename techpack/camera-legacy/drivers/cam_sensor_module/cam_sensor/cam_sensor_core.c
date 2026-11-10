@@ -715,9 +715,11 @@ void cam_sensor_shutdown(struct cam_sensor_ctrl_t *s_ctrl)
 		&s_ctrl->sensordata->power_info;
 	int rc = 0;
 
-	if ((s_ctrl->sensor_state == CAM_SENSOR_INIT) &&
-		(s_ctrl->is_probe_succeed == 0))
+	/* Keep the probed power settings, Samsung camx reopens after probe */
+	if (s_ctrl->sensor_state == CAM_SENSOR_INIT) {
+		s_ctrl->is_probe_succeed = 0;
 		return;
+	}
 
 	cam_sensor_release_stream_rsc(s_ctrl);
 	cam_sensor_release_per_frame_resource(s_ctrl);
@@ -904,8 +906,11 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 		struct cam_sensor_acquire_dev sensor_acq_dev;
 		struct cam_create_dev_hdl bridge_params;
 
-		if ((s_ctrl->is_probe_succeed == 0) ||
-			(s_ctrl->sensor_state != CAM_SENSOR_INIT)) {
+		/*
+		 * Samsung camx closes and reopens the subdev after probing,
+		 * which clears is_probe_succeed, so only check the state.
+		 */
+		if (s_ctrl->sensor_state != CAM_SENSOR_INIT) {
 			CAM_WARN(CAM_SENSOR,
 				"Not in right state to aquire %d， probe %d",
 				s_ctrl->sensor_state, s_ctrl->is_probe_succeed);
