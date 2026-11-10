@@ -1151,6 +1151,7 @@
 
 	qcom,cam-icp {
 		compatible = "qcom,cam-icp";
+		qcom,no-fw-mem-map;
 		compat-hw-name = "qcom,a5",
 			"qcom,ipe0",
 			"qcom,ipe1",

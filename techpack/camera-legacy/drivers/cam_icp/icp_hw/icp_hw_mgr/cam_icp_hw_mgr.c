@@ -4411,6 +4411,10 @@ static int cam_icp_process_stream_settings(
 	struct hfi_cmd_ipe_bps_map  *map_cmd;
 	struct hfi_cmd_ipebps_async *async_direct;
 
+	/* Older firmware doesn't know HFI_IPEBPS_CMD_OPCODE_MEM_MAP */
+	if (icp_hw_mgr.no_fw_mem_map)
+		return 0;
+
 	map_cmd_size =
 		sizeof(struct hfi_cmd_ipe_bps_map) +
 		((cmd_mem_regions->num_regions - 1) *
@@ -5920,6 +5924,9 @@ static int cam_icp_mgr_alloc_devs(struct device_node *of_node)
 
 	icp_hw_mgr.icp_pc_flag = of_property_read_bool(of_node,
 		"icp_pc_en");
+
+	icp_hw_mgr.no_fw_mem_map = of_property_read_bool(of_node,
+		"qcom,no-fw-mem-map");
 
 	return 0;
 num_bps_failed:
