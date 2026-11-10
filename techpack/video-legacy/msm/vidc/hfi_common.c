@@ -1318,6 +1318,8 @@ static int __set_clocks(struct venus_hfi_device *device, u32 freq, u32 sid)
 		return 0;
 
 	venus_hfi_for_each_clock(device, cl) {
+		if (cl->disable_memcore_only)
+			continue;
 		if (cl->has_scaling) {/* has_scaling */
 			rc = __set_clk_rate(device, cl, freq, sid);
 			if (rc)
@@ -3646,6 +3648,8 @@ void __disable_unprepare_clks(struct venus_hfi_device *device)
 	}
 
 	venus_hfi_for_each_clock_reverse(device, cl) {
+		if (cl->disable_memcore_only)
+			continue;
 		d_vpr_h("Clock: %s disable and unprepare\n",
 				cl->name);
 		rc = clk_set_flags(cl->clk, CLKFLAG_NORETAIN_PERIPH);
@@ -3716,6 +3720,11 @@ static inline int __prepare_enable_clks(struct venus_hfi_device *device,
 	}
 
 	venus_hfi_for_each_clock(device, cl) {
+		/* The memory core is on by default, unset it for unused clocks */
+		if (cl->disable_memcore_only) {
+			clk_set_flags(cl->clk, CLKFLAG_NORETAIN_MEM);
+			continue;
+		}
 		/*
 		 * For the clocks we control, set the rate prior to preparing
 		 * them.  Since we don't really have a load at this point, scale
@@ -3760,6 +3769,8 @@ static inline int __prepare_enable_clks(struct venus_hfi_device *device,
 
 fail_clk_enable:
 	venus_hfi_for_each_clock_reverse_continue(device, cl, c) {
+		if (cl->disable_memcore_only)
+			continue;
 		s_vpr_e(sid, "Clock: %s disable and unprepare\n",
 			cl->name);
 		clk_disable_unprepare(cl->clk);

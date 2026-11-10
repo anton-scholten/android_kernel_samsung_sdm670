@@ -70,6 +70,7 @@ struct clock_info {
 	u32 count;
 	bool has_scaling;
 	bool has_mem_retention;
+	bool disable_memcore_only;
 };
 
 struct clock_set {

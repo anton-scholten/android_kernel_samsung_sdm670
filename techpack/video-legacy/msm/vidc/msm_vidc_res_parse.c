@@ -17,6 +17,7 @@
 enum clock_properties {
 	CLOCK_PROP_HAS_SCALING = 1 << 0,
 	CLOCK_PROP_HAS_MEM_RETENTION    = 1 << 1,
+	CLOCK_PROP_DISABLE_MEMCORE_ONLY = 1 << 2,
 };
 
 static struct memory_limit_table memory_limit_tbl_mbytes[] = {
@@ -662,6 +663,9 @@ static int msm_vidc_load_clock_table(
 			vc->has_mem_retention = true;
 		else
 			vc->has_mem_retention = false;
+
+		vc->disable_memcore_only =
+			!!(clock_props[c] & CLOCK_PROP_DISABLE_MEMCORE_ONLY);
 
 		d_vpr_h("Found clock %s: scale-able = %s\n", vc->name,
 			vc->has_scaling ? "yes" : "no");
