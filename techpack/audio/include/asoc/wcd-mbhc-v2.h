@@ -648,7 +648,15 @@ struct wcd_mbhc {
 	struct iio_channel *earjack_chan;
 	u32 det_debounce_ms;
 	struct wcd_mbhc_jack_zone jack_zones[WCD_MBHC_JACK_ZONES];
+
+	/* Samsung USB-C analog audio switch */
+	int sbu_oe_gpio;
+	int ear_sel_gpio;
+	int gnd_sel_gpio;
+	bool usbc_ana_swapped;
 };
+
+void wcd_mbhc_usbc_ana_switch(struct wcd_mbhc *mbhc, bool detect);
 
 void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
 				   enum wcd_mbhc_plug_type plug_type);

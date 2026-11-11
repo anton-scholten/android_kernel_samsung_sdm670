@@ -548,6 +548,27 @@ void wcd_mbhc_hs_elec_irq(struct wcd_mbhc *mbhc, int irq_type,
 }
 EXPORT_SYMBOL(wcd_mbhc_hs_elec_irq);
 
+/*
+ * Route the USB-C SBU lines to the codec and the jack ADC while a plug is
+ * being detected or used, and back to idle on removal.
+ */
+void wcd_mbhc_usbc_ana_switch(struct wcd_mbhc *mbhc, bool detect)
+{
+	if (gpio_is_valid(mbhc->sbu_oe_gpio))
+		gpio_set_value_cansleep(mbhc->sbu_oe_gpio, !detect);
+	if (gpio_is_valid(mbhc->ear_sel_gpio))
+		gpio_set_value_cansleep(mbhc->ear_sel_gpio, detect);
+	if (gpio_is_valid(mbhc->gnd_sel_gpio))
+		gpio_set_value_cansleep(mbhc->gnd_sel_gpio, detect);
+
+	if (!detect && mbhc->usbc_ana_swapped) {
+		if (mbhc->mbhc_cfg->swap_gnd_mic)
+			mbhc->mbhc_cfg->swap_gnd_mic(mbhc->component, false);
+		mbhc->usbc_ana_swapped = false;
+	}
+}
+EXPORT_SYMBOL(wcd_mbhc_usbc_ana_switch);
+
 void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 				enum snd_jack_types jack_type)
 {
@@ -599,6 +620,7 @@ void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 			 jack_type, mbhc->hph_status);
 		wcd_mbhc_jack_report(mbhc, &mbhc->headset_jack,
 				mbhc->hph_status, WCD_MBHC_JACK_MASK);
+		wcd_mbhc_usbc_ana_switch(mbhc, false);
 		wcd_mbhc_set_and_turnoff_hph_padac(mbhc);
 		hphrocp_off_report(mbhc, SND_JACK_OC_HPHR);
 		hphlocp_off_report(mbhc, SND_JACK_OC_HPHL);
@@ -641,6 +663,7 @@ void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 				wcd_mbhc_jack_report(mbhc, &mbhc->headset_jack,
 					0, WCD_MBHC_JACK_MASK);
 			}
+			wcd_mbhc_usbc_ana_switch(mbhc, false);
 			if (mbhc->hph_status == SND_JACK_LINEOUT) {
 
 				pr_debug("%s: Enable micbias\n", __func__);
@@ -860,6 +883,7 @@ void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
 	} else {
 		WARN(1, "Unexpected current plug_type %d, plug_type %d\n",
 		     mbhc->current_plug, plug_type);
+		wcd_mbhc_usbc_ana_switch(mbhc, false);
 	}
 exit:
 	pr_debug("%s: leave\n", __func__);
@@ -1820,6 +1844,14 @@ int wcd_mbhc_start(struct wcd_mbhc *mbhc, struct wcd_mbhc_config *mbhc_cfg)
 	/* update the mbhc config */
 	mbhc->mbhc_cfg = mbhc_cfg;
 
+	/*
+	 * The jack ADC tells line-out apart already; the electrical removal
+	 * detection used for extension cables reads a biased headset mic as
+	 * a removal and keeps re-detecting the plug.
+	 */
+	if (mbhc->earjack_chan)
+		mbhc_cfg->detect_extn_cable = false;
+
 	dev_dbg(mbhc->component->dev, "%s: enter\n", __func__);
 
 	/* check if USB C analog is defined on device tree */
@@ -1994,6 +2026,25 @@ EXPORT_SYMBOL(wcd_mbhc_stop);
  *
  * NOTE: mbhc->mbhc_cfg is not YET configure so shouldn't be used
  */
+static int wcd_mbhc_init_usbc_ana_gpio(struct device *dev, const char *name,
+				       unsigned long flags)
+{
+	int gpio, ret;
+
+	gpio = of_get_named_gpio(dev->of_node, name, 0);
+	if (!gpio_is_valid(gpio))
+		return -ENOENT;
+
+	ret = devm_gpio_request_one(dev, gpio, flags, name);
+	if (ret) {
+		dev_err(dev, "%s: failed to request %s: %d\n", __func__,
+			name, ret);
+		return ret;
+	}
+
+	return gpio;
+}
+
 static int wcd_mbhc_init_earjack_adc(struct wcd_mbhc *mbhc,
 				     struct device *dev)
 {
@@ -2002,6 +2053,10 @@ static int wcd_mbhc_init_earjack_adc(struct wcd_mbhc *mbhc,
 
 	if (mbhc->earjack_chan)
 		return 0;
+
+	mbhc->sbu_oe_gpio = -ENOENT;
+	mbhc->ear_sel_gpio = -ENOENT;
+	mbhc->gnd_sel_gpio = -ENOENT;
 
 	if (!of_find_property(dev->of_node, "det-zones-list", NULL))
 		return 0;
@@ -2032,6 +2087,13 @@ static int wcd_mbhc_init_earjack_adc(struct wcd_mbhc *mbhc,
 				__func__, ret);
 		return ret;
 	}
+
+	mbhc->sbu_oe_gpio = wcd_mbhc_init_usbc_ana_gpio(dev, "sbu-oe-gpio",
+						GPIOF_OUT_INIT_HIGH);
+	mbhc->ear_sel_gpio = wcd_mbhc_init_usbc_ana_gpio(dev, "ear-sel-gpio",
+						GPIOF_OUT_INIT_LOW);
+	mbhc->gnd_sel_gpio = wcd_mbhc_init_usbc_ana_gpio(dev, "gnd-sel-gpio",
+						GPIOF_OUT_INIT_LOW);
 
 	dev_dbg(dev, "%s: using earjack ADC, debounce %u ms\n", __func__,
 		mbhc->det_debounce_ms);

@@ -473,6 +473,8 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	mbhc = container_of(work, struct wcd_mbhc, correct_plug_swch);
 	component = mbhc->component;
 
+	wcd_mbhc_usbc_ana_switch(mbhc, true);
+
 	/*
 	 * Enable micbias/pullup for detection in correct work.
 	 * This work will get scheduled from detect_plug_type which
@@ -596,9 +598,15 @@ correct_plug_type:
 		if (mbhc->earjack_chan) {
 			if (plug_type == MBHC_PLUG_TYPE_GND_MIC_SWAP &&
 			    mbhc->mbhc_cfg->swap_gnd_mic &&
-			    mbhc->mbhc_cfg->swap_gnd_mic(component, true))
+			    mbhc->mbhc_cfg->swap_gnd_mic(component, true)) {
 				pr_debug("%s: US_EU gpio present, flip switch\n",
 					 __func__);
+				mbhc->usbc_ana_swapped = !mbhc->usbc_ana_swapped;
+				if (gpio_is_valid(mbhc->gnd_sel_gpio))
+					gpio_set_value_cansleep(
+						mbhc->gnd_sel_gpio,
+						!mbhc->usbc_ana_swapped);
+			}
 
 			plug_type = wcd_mbhc_earjack_plug_type(mbhc);
 			if (plug_type == MBHC_PLUG_TYPE_HEADSET) {
@@ -772,6 +780,9 @@ enable_supply:
 	else
 		wcd_enable_mbhc_supply(mbhc, plug_type);
 exit:
+	if (mbhc->hs_detect_work_stop)
+		wcd_mbhc_usbc_ana_switch(mbhc, false);
+
 	if (mbhc->mbhc_cb->mbhc_micbias_control &&
 	    !mbhc->micbias_enable)
 		mbhc->mbhc_cb->mbhc_micbias_control(component, MIC_BIAS_2,
