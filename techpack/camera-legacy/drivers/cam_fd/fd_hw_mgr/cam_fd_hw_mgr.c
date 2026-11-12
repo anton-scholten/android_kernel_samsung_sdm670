@@ -564,8 +564,12 @@ static int cam_fd_mgr_put_cpu_buf(struct cam_hw_prepare_update_args *prepare)
 		if (rc || !need_cpu_map)
 			continue;
 
-		for (plane = 0; plane < CAM_PACKET_MAX_PLANES; plane++)
+		for (plane = 0; plane < CAM_PACKET_MAX_PLANES; plane++) {
+			if (!io_cfg[i].mem_handle[plane])
+				break;
+
 			cam_mem_put_cpu_buf(io_cfg[i].mem_handle[plane]);
+		}
 	}
 	return 0;
 }
