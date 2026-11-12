@@ -984,6 +984,14 @@ config ICNSS
 	  control messages to FW over QMI channel. It is also responsible for
 	  handling WLAN PD restart notifications.
 
+config ICNSS_SEC_SYSFS
+	bool "Samsung /sys/wifi interface"
+	depends on ICNSS
+	help
+	  Expose the /sys/wifi nodes used by the Samsung macloader to
+	  provision the WLAN MAC address and read the driver version,
+	  SoftAP capabilities and WLAN state.
+
 config ICNSS_DEBUG
 	bool "ICNSS debug support"
 	depends on ICNSS

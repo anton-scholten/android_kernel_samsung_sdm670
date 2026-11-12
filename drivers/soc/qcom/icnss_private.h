@@ -374,6 +374,9 @@ struct icnss_priv {
 	char function_name[WLFW_FUNCTION_NAME_LEN + 1];
 	bool is_ssr;
 	struct kobject *icnss_kobject;
+#ifdef CONFIG_ICNSS_SEC_SYSFS
+	struct kobject *wifi_kobj;
+#endif
 	atomic_t is_shutdown;
 	phys_addr_t hang_event_data_pa;
 	void __iomem *hang_event_data_va;

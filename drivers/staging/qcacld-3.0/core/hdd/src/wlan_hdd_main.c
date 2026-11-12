@@ -102,6 +102,9 @@
 #endif /* FEATURE_WLAN_CH_AVOID */
 #include "cdp_txrx_flow_ctrl_v2.h"
 #include "pld_common.h"
+#ifdef CONFIG_ICNSS_SEC_SYSFS
+#include <soc/qcom/icnss.h>
+#endif
 #include "wlan_hdd_ocb.h"
 #include "wlan_hdd_nan.h"
 #include "wlan_hdd_debugfs.h"
@@ -3634,6 +3637,53 @@ void hdd_set_qmi_stats_enabled(struct hdd_context *hdd_ctx)
 }
 #endif
 
+#ifdef CONFIG_ICNSS_SEC_SYSFS
+static void hdd_sec_update_wlan_status(struct hdd_context *hdd_ctx,
+				       bool enabled)
+{
+	char version[512], softap[512];
+	int max_peers = 0;
+
+	if (!enabled) {
+		icnss_sec_update_wlan_status(false, NULL, NULL);
+		return;
+	}
+
+	ucfg_mlme_get_sap_max_peers(hdd_ctx->psoc, &max_peers);
+
+	scnprintf(version, sizeof(version),
+		  "HostSW: %s, FW: %d.%d.%d.%d.%d.%d, HW: WCN39xx, "
+		  "BoardVersion: %x RefdesignID: %x CustomerID: %x "
+		  "ProjectID: %x BoardDataRev: %x\n",
+		  QWLAN_VERSIONSTR,
+		  hdd_ctx->fw_version_info.major_spid,
+		  hdd_ctx->fw_version_info.minor_spid,
+		  hdd_ctx->fw_version_info.siid,
+		  hdd_ctx->fw_version_info.rel_id,
+		  hdd_ctx->fw_version_info.crmid,
+		  hdd_ctx->fw_version_info.sub_id,
+		  hdd_ctx->hw_bd_info.bdf_version,
+		  hdd_ctx->hw_bd_info.ref_design_id,
+		  hdd_ctx->hw_bd_info.customer_id,
+		  hdd_ctx->hw_bd_info.project_id,
+		  hdd_ctx->hw_bd_info.board_data_rev);
+	scnprintf(softap, sizeof(softap),
+		  "#softap.info\nDualBandConcurrency=%s\n5G=%s\n"
+		  "maxClient=%d\nHalFn_setCountryCodeHal=yes\n"
+		  "HalFn_getValidChannels=yes\nDualInterface=yes\n",
+		  policy_mgr_is_hw_dbs_capable(hdd_ctx->psoc) ? "yes" : "no",
+		  hdd_is_5g_supported(hdd_ctx) ? "yes" : "no",
+		  max_peers);
+
+	icnss_sec_update_wlan_status(true, version, softap);
+}
+#else
+static inline void hdd_sec_update_wlan_status(struct hdd_context *hdd_ctx,
+					      bool enabled)
+{
+}
+#endif
+
 int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 {
 	int ret = 0;
@@ -3856,6 +3906,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 	}
 
 	hdd_ctx->driver_status = DRIVER_MODULES_ENABLED;
+	hdd_sec_update_wlan_status(hdd_ctx, true);
 	hdd_nofl_debug("Wlan transitioned (now ENABLED)");
 
 	ucfg_ipa_reg_rps_enable_cb(hdd_ctx->pdev,
@@ -3893,6 +3944,7 @@ cds_txrx_free:
 
 close:
 	hdd_ctx->driver_status = DRIVER_MODULES_CLOSED;
+	hdd_sec_update_wlan_status(hdd_ctx, false);
 	hdd_info("Wlan transition aborted (now CLOSED)");
 
 	cds_close(hdd_ctx->psoc);
@@ -13863,6 +13915,7 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 	hdd_ctx->imps_enabled = false;
 	hdd_ctx->is_dual_mac_cfg_updated = false;
 	hdd_ctx->driver_status = DRIVER_MODULES_CLOSED;
+	hdd_sec_update_wlan_status(hdd_ctx, false);
 	hdd_debug("Wlan transitioned (now CLOSED)");
 
 done:

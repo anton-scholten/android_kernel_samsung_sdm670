@@ -157,4 +157,8 @@ extern bool icnss_is_pdr(void);
 extern int icnss_idle_restart(struct device *dev);
 extern int icnss_idle_shutdown(struct device *dev);
 extern unsigned long icnss_get_device_config(void);
+#ifdef CONFIG_ICNSS_SEC_SYSFS
+extern void icnss_sec_update_wlan_status(bool enabled, const char *version,
+					 const char *softap);
+#endif
 #endif /* _ICNSS_WLAN_H_ */

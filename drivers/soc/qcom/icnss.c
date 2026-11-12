@@ -44,6 +44,7 @@
 #include <soc/qcom/service-notifier.h>
 #include <soc/qcom/socinfo.h>
 #include <soc/qcom/ramdump.h>
+#include <net/cnss_utils.h>
 #include "icnss_private.h"
 #include "icnss_qmi.h"
 
@@ -3558,6 +3559,110 @@ static void icnss_sysfs_destroy(struct icnss_priv *priv)
 		kobject_put(icnss_kobject);
 }
 
+#ifdef CONFIG_ICNSS_SEC_SYSFS
+#define SEC_INFO_LEN 512
+
+static char sec_ver_info[SEC_INFO_LEN];
+static char sec_softap_info[SEC_INFO_LEN];
+static bool sec_wlan_enabled;
+
+void icnss_sec_update_wlan_status(bool enabled, const char *version,
+				  const char *softap)
+{
+	if (enabled) {
+		strscpy(sec_ver_info, version, SEC_INFO_LEN);
+		strscpy(sec_softap_info, softap, SEC_INFO_LEN);
+	}
+	sec_wlan_enabled = enabled;
+}
+EXPORT_SYMBOL(icnss_sec_update_wlan_status);
+
+static ssize_t mac_addr_store(struct kobject *kobj,
+			      struct kobj_attribute *attr,
+			      const char *buf, size_t count)
+{
+	u8 mac[ETH_ALEN];
+	int ret;
+
+	if (sscanf(buf, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1],
+		   &mac[2], &mac[3], &mac[4], &mac[5]) != ETH_ALEN)
+		return -EINVAL;
+
+	icnss_pr_info("Assigning MAC from macloader %pM\n", mac);
+
+	ret = cnss_utils_set_wlan_mac_address(mac, ETH_ALEN);
+	return ret ? ret : count;
+}
+
+static ssize_t wifiver_show(struct kobject *kobj,
+			    struct kobj_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%s", sec_ver_info);
+}
+
+static ssize_t softap_show(struct kobject *kobj,
+			   struct kobj_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%s", sec_softap_info);
+}
+
+static ssize_t qcwlanstate_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%s",
+			 sec_wlan_enabled ? "ON" : "OFF");
+}
+
+static struct kobj_attribute sec_mac_addr_attr = __ATTR_WO(mac_addr);
+static struct kobj_attribute sec_wifiver_attr = __ATTR(wifiver, 0440,
+						       wifiver_show, NULL);
+static struct kobj_attribute sec_softap_attr = __ATTR(softap, 0440,
+						      softap_show, NULL);
+static struct kobj_attribute sec_qcwlanstate_attr = __ATTR(qcwlanstate, 0440,
+							   qcwlanstate_show,
+							   NULL);
+
+static struct attribute *sec_wifi_attrs[] = {
+	&sec_mac_addr_attr.attr,
+	&sec_wifiver_attr.attr,
+	&sec_softap_attr.attr,
+	&sec_qcwlanstate_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group sec_wifi_attr_group = {
+	.attrs = sec_wifi_attrs,
+};
+
+static void icnss_sec_sysfs_create(struct icnss_priv *priv)
+{
+	priv->wifi_kobj = kobject_create_and_add("wifi", NULL);
+	if (!priv->wifi_kobj) {
+		icnss_pr_err("Unable to create wifi kernel object\n");
+		return;
+	}
+
+	if (sysfs_create_group(priv->wifi_kobj, &sec_wifi_attr_group)) {
+		icnss_pr_err("Unable to create wifi sysfs group\n");
+		kobject_put(priv->wifi_kobj);
+		priv->wifi_kobj = NULL;
+	}
+}
+
+static void icnss_sec_sysfs_destroy(struct icnss_priv *priv)
+{
+	if (!priv->wifi_kobj)
+		return;
+
+	sysfs_remove_group(priv->wifi_kobj, &sec_wifi_attr_group);
+	kobject_put(priv->wifi_kobj);
+	priv->wifi_kobj = NULL;
+}
+#else
+static void icnss_sec_sysfs_create(struct icnss_priv *priv) {}
+static void icnss_sec_sysfs_destroy(struct icnss_priv *priv) {}
+#endif
+
 static void icnss_unregister_power_supply_notifier(struct icnss_priv *priv)
 {
 	if (priv->batt_psy)
@@ -3887,6 +3992,7 @@ static int icnss_probe(struct platform_device *pdev)
 	icnss_debugfs_create(priv);
 
 	icnss_sysfs_create(priv);
+	icnss_sec_sysfs_create(priv);
 
 	ret = device_init_wakeup(&priv->pdev->dev, true);
 	if (ret)
@@ -3921,6 +4027,7 @@ static int icnss_remove(struct platform_device *pdev)
 
 	icnss_debugfs_destroy(penv);
 
+	icnss_sec_sysfs_destroy(penv);
 	icnss_sysfs_destroy(penv);
 
 	complete_all(&penv->unblock_shutdown);
