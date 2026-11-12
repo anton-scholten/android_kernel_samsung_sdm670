@@ -239,6 +239,7 @@ source "drivers/samsung/Kconfig"
 
 source "drivers/muic/Kconfig"
 
+
 source "drivers/muic/universal/Kconfig"
 
 source "drivers/ccic/Kconfig"
@@ -249,13 +250,18 @@ source "drivers/battery_v2/Kconfig"
 
 source "drivers/muic/Kconfig"
 
+
 source "drivers/muic/universal/Kconfig"
 
 source "drivers/ccic/Kconfig"
 
 source "drivers/muic/Kconfig"
 
+
 source "drivers/muic/universal/Kconfig"
 
 source "drivers/muic/Kconfig"
+
+source "drivers/fingerprint/Kconfig"
+
 endmenu

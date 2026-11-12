@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menuconfig SENSORS_FINGERPRINT
+	bool "Fingerprint sensor devices"
+	help
+	  Say Y here to get a list of fingerprint sensor drivers.
+
+if SENSORS_FINGERPRINT
+
+config SENSORS_FINGERPRINT_SECURE
+	bool "Fingerprint sensor is owned by the secure world"
+	default y
+	help
+	  The sensor SPI bus is driven by a TrustZone application. The
+	  kernel only handles power, reset and the data-ready interrupt.
+
+config SENSORS_ET5XX
+	tristate "ET5XX fingerprint sensor support"
+	depends on SPI
+	help
+	  Say Y here to enable support for the Egistec ET5XX
+	  fingerprint sensor.
+
+endif # SENSORS_FINGERPRINT
