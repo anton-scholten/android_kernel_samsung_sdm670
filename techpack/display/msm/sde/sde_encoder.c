@@ -3639,6 +3639,16 @@ void sde_encoder_helper_phys_disable(struct sde_encoder_phys *phys_enc,
 				phys_enc->hw_pp->merge_3d->idx : 0);
 
 	phys_enc->hw_ctl->ops.trigger_flush(phys_enc->hw_ctl);
+
+	/*
+	 * Without active CTL configuration a CTL_START on a video mode CTL
+	 * whose timing engine is already off wedges the MDP until the next
+	 * power collapse, hanging the command mode panel's next kickoff.
+	 */
+	if (phys_enc->intf_mode == INTF_MODE_VIDEO &&
+	    !test_bit(SDE_CTL_ACTIVE_CFG, &phys_enc->hw_ctl->caps->features))
+		return;
+
 	phys_enc->hw_ctl->ops.trigger_start(phys_enc->hw_ctl);
 }
 
