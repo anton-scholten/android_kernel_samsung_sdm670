@@ -396,8 +396,6 @@ static int sm5705_suspend(struct device *dev)
 	if (device_may_wakeup(dev))
 		enable_irq_wake(sm5705->irq);
 
-	disable_irq(sm5705->irq);
-
 	return 0;
 }
 
@@ -412,8 +410,6 @@ static int sm5705_resume(struct device *dev)
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(sm5705->irq);
-
-	enable_irq(sm5705->irq);
 
 	return 0;
 }

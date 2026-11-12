@@ -305,7 +305,7 @@ int sm5705_irq_init(struct sm5705_dev *sm5705)
     }
 
     ret = request_threaded_irq(sm5705->irq, NULL, sm5705_irq_thread,
-         IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_NO_SUSPEND,
+         IRQF_TRIGGER_LOW | IRQF_ONESHOT,
                 "sm5705-irq", sm5705);
     if (ret) {
      dev_err(sm5705->dev, "Failed to request IRQ %d: %d\n",

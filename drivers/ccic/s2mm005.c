@@ -1171,7 +1171,7 @@ static int s2mm005_usbpd_probe(struct i2c_client *i2c,
 	fp_select_pdo = s2mm005_select_pdo;
 
 	ret = request_threaded_irq(usbpd_data->irq, NULL, s2mm005_usbpd_irq_thread,
-		(IRQF_TRIGGER_FALLING | IRQF_NO_SUSPEND | IRQF_ONESHOT), "s2mm005-usbpd", usbpd_data);
+		(IRQF_TRIGGER_FALLING | IRQF_ONESHOT), "s2mm005-usbpd", usbpd_data);
 	if (ret) {
 		dev_err(&i2c->dev, "Failed to request IRQ %d, error %d\n", usbpd_data->irq, ret);
 		goto err_init_irq;
@@ -1316,8 +1316,6 @@ static int s2mm005_suspend(struct device *dev)
 	if (device_may_wakeup(dev))
 		enable_irq_wake(usbpd_data->irq);
 
-	disable_irq(usbpd_data->irq);
-
 	return 0;
 }
 
@@ -1332,8 +1330,6 @@ static int s2mm005_resume(struct device *dev)
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(usbpd_data->irq);
-
-	enable_irq(usbpd_data->irq);
 
 	return 0;
 }

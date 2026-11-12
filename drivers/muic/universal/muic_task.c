@@ -946,43 +946,12 @@ static void muic_shutdown(struct i2c_client *i2c)
 	muic_online =  false;
 	pr_info("%s:%s -\n", MUIC_DEV_NAME, __func__);
 }
-#if defined(CONFIG_PM)
-
-static int muic_suspend(struct device *dev)
-{
-	muic_data_t *pmuic = dev_get_drvdata(dev);
-	struct i2c_client *i2c = pmuic->i2c;
-
-	disable_irq_nosync(i2c->irq);
-
-	return 0;
-}
-
-static int muic_resume(struct device *dev)
-{
-	muic_data_t *pmuic = dev_get_drvdata(dev);
-	struct i2c_client *i2c = pmuic->i2c;
-
-	enable_irq(i2c->irq);
-
-	return 0;
-}
-
-const struct dev_pm_ops muic_pm = {
-	.suspend = muic_suspend,
-	.resume = muic_resume,
-};
-#endif /* CONFIG_PM */
-
 static struct i2c_driver muic_driver = {
 	.driver		= {
 		.name	= MUIC_DEV_NAME,
 #if defined(CONFIG_OF)
 		.of_match_table	= muic_i2c_dt_ids,
 #endif /* CONFIG_OF */
-#if defined(CONFIG_PM)
-		.pm = &muic_pm,
-#endif /* CONFIG_PM */
 	},
 	.probe		= muic_probe,
 	.remove		= muic_remove,
