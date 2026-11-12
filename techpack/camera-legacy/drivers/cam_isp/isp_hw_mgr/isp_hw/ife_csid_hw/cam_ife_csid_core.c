@@ -3266,7 +3266,8 @@ static int cam_ife_csid_disable_udi_path(
 
 static int cam_ife_csid_poll_stop_status(
 	struct cam_ife_csid_hw          *csid_hw,
-	uint32_t                         res_mask)
+	uint32_t                         res_mask,
+	bool                             report)
 {
 	int rc = 0, id;
 	uint32_t csid_status_addr = 0, val = 0, res_id = 0;
@@ -3313,8 +3314,10 @@ static int cam_ife_csid_poll_stop_status(
 				CAM_IFE_CSID_TIMEOUT_SLEEP_US,
 				CAM_IFE_CSID_TIMEOUT_ALL_US);
 		if (rc < 0) {
-			CAM_ERR(CAM_ISP, "CSID:%d res:%d halt failed rc %d",
-				csid_hw->hw_intf->hw_idx, res_id, rc);
+			if (report)
+				CAM_ERR(CAM_ISP,
+					"CSID:%d res:%d halt failed rc %d",
+					csid_hw->hw_intf->hw_idx, res_id, rc);
 			rc = -ETIMEDOUT;
 			break;
 		}
@@ -4080,6 +4083,7 @@ int cam_ife_csid_stop(void *hw_priv,
 	struct cam_csid_hw_stop_args         *csid_stop;
 	uint32_t  i;
 	uint32_t res_mask = 0;
+	bool halt_now;
 	unsigned long flags;
 
 	if (!hw_priv || !stop_args ||
@@ -4148,8 +4152,36 @@ int cam_ife_csid_stop(void *hw_priv,
 		}
 	}
 
-	if (res_mask)
-		rc = cam_ife_csid_poll_stop_status(csid_hw, res_mask);
+	if (res_mask) {
+		halt_now = csid_stop->stop_cmd == CAM_CSID_HALT_IMMEDIATELY;
+		rc = cam_ife_csid_poll_stop_status(csid_hw, res_mask, halt_now);
+		/*
+		 * Older camx stops the sensor before the ISP, so a frame
+		 * boundary halt never completes. Halt immediately instead.
+		 */
+		if (rc && !halt_now) {
+			CAM_DBG(CAM_ISP, "CSID:%d no frame boundary, halt now",
+				csid_hw->hw_intf->hw_idx);
+			for (i = 0; i < csid_stop->num_res; i++) {
+				res = csid_stop->node_res[i];
+				if (res->res_type != CAM_ISP_RESOURCE_PIX_PATH)
+					continue;
+				if (res->res_id == CAM_IFE_PIX_PATH_RES_IPP ||
+					res->res_id == CAM_IFE_PIX_PATH_RES_PPP)
+					cam_ife_csid_disable_pxl_path(csid_hw,
+						res, CAM_CSID_HALT_IMMEDIATELY);
+				else if (res->res_id <=
+					CAM_IFE_PIX_PATH_RES_RDI_3)
+					cam_ife_csid_disable_rdi_path(csid_hw,
+						res, CAM_CSID_HALT_IMMEDIATELY);
+				else
+					cam_ife_csid_disable_udi_path(csid_hw,
+						res, CAM_CSID_HALT_IMMEDIATELY);
+			}
+			rc = cam_ife_csid_poll_stop_status(csid_hw, res_mask,
+				true);
+		}
+	}
 
 	for (i = 0; i < csid_stop->num_res; i++) {
 		res = csid_stop->node_res[i];
