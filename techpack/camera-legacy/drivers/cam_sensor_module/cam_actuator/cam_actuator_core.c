@@ -372,6 +372,13 @@ static void cam_actuator_update_req_mgr(
 	add_req.dev_hdl = a_ctrl->bridge_intf.device_hdl;
 	add_req.skip_before_applying = 0;
 
+	/* Older camx never links the actuator and moves the lens directly */
+	if (a_ctrl->bridge_intf.link_hdl == -1) {
+		CAM_DBG(CAM_ACTUATOR, "Not linked, skip Request ID: %lld",
+			add_req.req_id);
+		return;
+	}
+
 	if (a_ctrl->bridge_intf.crm_cb &&
 		a_ctrl->bridge_intf.crm_cb->add_req) {
 		a_ctrl->bridge_intf.crm_cb->add_req(&add_req);
