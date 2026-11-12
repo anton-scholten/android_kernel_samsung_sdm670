@@ -9,6 +9,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include "cam_debug_util.h"
 #include "cam_res_mgr_api.h"
 #include "cam_res_mgr_private.h"
@@ -604,14 +605,19 @@ EXPORT_SYMBOL(cam_res_mgr_shared_clk_config);
 
 static int cam_res_mgr_parse_dt(struct device *dev)
 {
-	int rc = 0;
+	int rc = 0, i;
+	bool use_gpios;
 	struct device_node *of_node = NULL;
 	struct cam_res_mgr_dt *dt = &cam_res->dt;
 
 	of_node = dev->of_node;
 
-	dt->num_shared_gpio = of_property_count_u32_elems(of_node,
-		"shared-gpios");
+	/* Raw shared-gpios numbers only match when the TLMM base is 0 */
+	dt->num_shared_gpio = of_gpio_count(of_node);
+	use_gpios = dt->num_shared_gpio > 0;
+	if (!use_gpios)
+		dt->num_shared_gpio = of_property_count_u32_elems(of_node,
+			"shared-gpios");
 
 	if (dt->num_shared_gpio > MAX_SHARED_GPIO_SIZE ||
 		dt->num_shared_gpio <= 0) {
@@ -624,11 +630,23 @@ static int cam_res_mgr_parse_dt(struct device *dev)
 		return -EINVAL;
 	}
 
-	rc = of_property_read_u32_array(of_node, "shared-gpios",
-		dt->shared_gpio, dt->num_shared_gpio);
-	if (rc) {
-		CAM_ERR(CAM_RES, "Get shared gpio array failed.");
-		return -EINVAL;
+	if (use_gpios) {
+		for (i = 0; i < dt->num_shared_gpio; i++) {
+			rc = of_get_gpio(of_node, i);
+			if (rc < 0) {
+				CAM_ERR(CAM_RES, "Get shared gpio %d failed", i);
+				return -EINVAL;
+			}
+			dt->shared_gpio[i] = rc;
+		}
+		rc = 0;
+	} else {
+		rc = of_property_read_u32_array(of_node, "shared-gpios",
+			dt->shared_gpio, dt->num_shared_gpio);
+		if (rc) {
+			CAM_ERR(CAM_RES, "Get shared gpio array failed.");
+			return -EINVAL;
+		}
 	}
 
 	dt->pinctrl_info.pinctrl = devm_pinctrl_get(dev);
