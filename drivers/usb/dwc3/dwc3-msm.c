@@ -294,6 +294,7 @@ struct dwc3_msm {
 	struct regulator	*vbus_reg;
 	int			vbus_retry_count;
 	bool			resume_pending;
+	bool			no_vbus_vote_type_c;
 	atomic_t                pm_suspended;
 	struct usb_irq		wakeup_irq[USB_MAX_IRQ];
 	struct work_struct	resume_work;
@@ -3936,6 +3937,9 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		}
 	}
 
+	mdwc->no_vbus_vote_type_c = of_property_read_bool(node,
+				"qcom,no-vbus-vote-with-type-C");
+
 	mdwc->use_pdc_interrupts = of_property_read_bool(node,
 				"qcom,use-pdc-interrupts");
 
@@ -4338,7 +4342,7 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 	 * IS_ERR: regulator could not be obtained, so skip using it
 	 * Valid pointer otherwise
 	 */
-	if (!mdwc->vbus_reg) {
+	if (!mdwc->vbus_reg && !mdwc->no_vbus_vote_type_c) {
 		mdwc->vbus_reg = devm_regulator_get_optional(mdwc->dev,
 					"vbus_dwc3");
 		if (PTR_ERR(mdwc->vbus_reg) == -EPROBE_DEFER) {
