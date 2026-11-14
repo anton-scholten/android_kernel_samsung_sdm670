@@ -264,4 +264,6 @@ source "drivers/muic/Kconfig"
 
 source "drivers/fingerprint/Kconfig"
 
+source "drivers/motor/Kconfig"
+
 endmenu

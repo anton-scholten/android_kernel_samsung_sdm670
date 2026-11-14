@@ -193,6 +193,7 @@ obj-$(CONFIG_SIOX)		+= siox/
 obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_SENSORS_SSC)	+= sensors/
 obj-$(CONFIG_SENSORS_FINGERPRINT)	+= fingerprint/
+obj-y				+= motor/
 obj-$(CONFIG_ADSP_FACTORY)	+= adsp_factory/
 obj-$(CONFIG_DRV_SAMSUNG)	+= samsung/
 obj-$(CONFIG_USE_MUIC)		+= muic/
