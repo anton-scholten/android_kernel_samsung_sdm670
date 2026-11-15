@@ -464,6 +464,21 @@ static void halt_spmi_pmic_arbiter(void)
 	}
 }
 
+static void msm_set_sec_debug_level(unsigned long level)
+{
+	switch (level) {
+	case 0x4f4c:
+		qpnp_pon_set_restart_reason(PON_RESTART_REASON_DBG_LOW);
+		break;
+	case 0x494d:
+		qpnp_pon_set_restart_reason(PON_RESTART_REASON_DBG_MID);
+		break;
+	case 0x4948:
+		qpnp_pon_set_restart_reason(PON_RESTART_REASON_DBG_HIGH);
+		break;
+	}
+}
+
 static void msm_restart_prepare(const char *cmd)
 {
 	bool need_warm_reset = false;
@@ -534,6 +549,21 @@ static void msm_restart_prepare(const char *cmd)
 			if (!ret)
 				__raw_writel(0x6f656d00 | (code & 0xff),
 					     restart_reason);
+		} else if (!strncmp(cmd, "debug", 5)) {
+			/* Samsung param debug level: debug0x4f4c/494d/4948 */
+			unsigned long level;
+
+			if (!kstrtoul(cmd + 5, 0, &level))
+				msm_set_sec_debug_level(level);
+			__raw_writel(0, restart_reason);
+		} else if (!strncmp(cmd, "forceupload", 11)) {
+			unsigned long on;
+
+			if (!kstrtoul(cmd + 11, 0, &on))
+				qpnp_pon_set_restart_reason(on ?
+					PON_RESTART_REASON_FORCE_UPLOAD_ON :
+					PON_RESTART_REASON_FORCE_UPLOAD_OFF);
+			__raw_writel(0, restart_reason);
 		} else if (!strncmp(cmd, "edl", 3)) {
 			enable_emergency_dload_mode();
 		} else {
