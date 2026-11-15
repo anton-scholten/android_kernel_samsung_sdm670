@@ -67,6 +67,8 @@
 #define VOLTAGE_CONVERTER(value, min_value, step_size)\
 	((value - min_value)/step_size)
 
+#define DAPM_MICBIAS1_EXT_STANDALONE "MIC BIAS External Standalone"
+
 enum {
 	BOOST_SWITCH = 0,
 	BOOST_ALWAYS,
@@ -1625,6 +1627,56 @@ static int msm_anlg_cdc_ear_pa_boost_set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int msm_anlg_cdc_micbias_get(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+				snd_soc_kcontrol_component(kcontrol);
+	struct sdm660_cdc_priv *sdm660_cdc =
+				snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = sdm660_cdc->micb1_standalone;
+	return 0;
+}
+
+static int msm_anlg_cdc_micbias_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+				snd_soc_kcontrol_component(kcontrol);
+	struct sdm660_cdc_priv *sdm660_cdc =
+				snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm =
+				snd_soc_component_get_dapm(component);
+	bool enable = !!ucontrol->value.integer.value[0];
+
+	if (enable == sdm660_cdc->micb1_standalone)
+		return 0;
+
+	if (enable) {
+		msm_anlg_cdc_enable_ext_mb_source(&sdm660_cdc->mbhc, true);
+		snd_soc_dapm_force_enable_pin(dapm, "VDDA18_L10_REGULATOR");
+		snd_soc_dapm_force_enable_pin(dapm, "VDD_L1_REGULATOR");
+		snd_soc_dapm_force_enable_pin(dapm,
+					      DAPM_MICBIAS1_EXT_STANDALONE);
+		snd_soc_dapm_sync(dapm);
+#ifdef CONFIG_SEC_GTS4LV_PROJECT
+		snd_soc_component_update_bits(component,
+			MSM89XX_PMIC_ANALOG_MICB_1_EN, 0xC1, 0x81);
+		snd_soc_component_update_bits(component,
+			MSM89XX_PMIC_ANALOG_MICB_1_INT_RBIAS, 0x68, 0x20);
+#endif
+	} else {
+		snd_soc_dapm_disable_pin(dapm, DAPM_MICBIAS1_EXT_STANDALONE);
+		snd_soc_dapm_disable_pin(dapm, "VDDA18_L10_REGULATOR");
+		snd_soc_dapm_disable_pin(dapm, "VDD_L1_REGULATOR");
+		snd_soc_dapm_sync(dapm);
+		msm_anlg_cdc_enable_ext_mb_source(&sdm660_cdc->mbhc, false);
+	}
+	sdm660_cdc->micb1_standalone = enable;
+	return 0;
+}
+
 static int msm_anlg_cdc_pa_gain_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
@@ -1934,6 +1986,12 @@ static int msm_anlg_cdc_ext_spk_boost_set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static const char * const msm_anlg_cdc_micbias_ctrl_text[] = {
+		"DISABLE", "ENABLE"};
+static const struct soc_enum msm_anlg_cdc_micbias_ctl_enum[] = {
+		SOC_ENUM_SINGLE_EXT(2, msm_anlg_cdc_micbias_ctrl_text),
+};
+
 static const char * const msm_anlg_cdc_ear_pa_boost_ctrl_text[] = {
 		"DISABLE", "ENABLE"};
 static const struct soc_enum msm_anlg_cdc_ear_pa_boost_ctl_enum[] = {
@@ -1978,6 +2036,9 @@ static const char * const cf_text[] = {
 
 
 static const struct snd_kcontrol_new msm_anlg_cdc_snd_controls[] = {
+
+	SOC_ENUM_EXT("Enable Micbias", msm_anlg_cdc_micbias_ctl_enum[0],
+		msm_anlg_cdc_micbias_get, msm_anlg_cdc_micbias_put),
 
 	SOC_ENUM_EXT("RX HPH Mode", msm_anlg_cdc_hph_mode_ctl_enum[0],
 		msm_anlg_cdc_hph_mode_get, msm_anlg_cdc_hph_mode_set),
@@ -3573,6 +3634,10 @@ static const struct snd_soc_dapm_widget msm_anlg_cdc_dapm_widgets[] = {
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_MICBIAS_E("MIC BIAS External",
+		MSM89XX_PMIC_ANALOG_MICB_1_EN, 7, 0,
+		msm_anlg_cdc_codec_enable_micbias, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MICBIAS_E(DAPM_MICBIAS1_EXT_STANDALONE,
 		MSM89XX_PMIC_ANALOG_MICB_1_EN, 7, 0,
 		msm_anlg_cdc_codec_enable_micbias, SND_SOC_DAPM_PRE_PMU |
 		SND_SOC_DAPM_POST_PMD),

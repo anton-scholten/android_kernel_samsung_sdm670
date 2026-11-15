@@ -193,6 +193,7 @@ struct sdm660_cdc_priv {
 	/* compander used for each rx chain */
 	bool spk_boost_set;
 	bool ear_pa_boost_set;
+	bool micb1_standalone;
 	bool ext_spk_boost_set;
 	struct on_demand_supply on_demand_list[ON_DEMAND_SUPPLIES_MAX];
 	struct regulator *spkdrv_reg;
