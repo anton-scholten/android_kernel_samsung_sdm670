@@ -117,6 +117,22 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 			(!ion_buffer_cached(buffer)))
 			ion_pages_sync_for_device(dev, pages, size,
 						DMA_BIDIRECTIONAL);
+
+		/*
+		 * Uncached buffers are written through write-combine
+		 * mappings, so the zeroed lines the memset left in the
+		 * cache would go stale. Drop them, like the DMA API did
+		 * when these buffers came from dma_alloc_writecombine().
+		 */
+		if (hlos_accessible_buffer(buffer) &&
+		    !ion_buffer_cached(buffer)) {
+			struct scatterlist sg;
+
+			sg_init_table(&sg, 1);
+			sg_set_page(&sg, pages, size, 0);
+			sg_dma_address(&sg) = page_to_phys(pages);
+			dma_sync_sg_for_cpu(dev, &sg, 1, DMA_FROM_DEVICE);
+		}
 	}
 
 	table = kmalloc(sizeof(*table), GFP_KERNEL);
