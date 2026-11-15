@@ -1532,7 +1532,8 @@ static void msm_geni_serial_set_manual_flow(bool enable,
 
 static bool legacy_machine_check_geni(void)
 {
-	return of_machine_is_compatible("qcom,sdm845");
+	return of_machine_is_compatible("qcom,sdm670") ||
+	       of_machine_is_compatible("qcom,sdm845");
 }
 
 static int stop_rx_sequencer(struct uart_port *uport)
