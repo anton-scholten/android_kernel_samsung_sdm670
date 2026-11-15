@@ -58,6 +58,8 @@
 #include "braille.h"
 #include "internal.h"
 
+#include <linux/samsung/sec_log_buf.h>
+
 int console_printk[4] = {
 	CONSOLE_LOGLEVEL_DEFAULT,	/* console_loglevel */
 	MESSAGE_LOGLEVEL_DEFAULT,	/* default_message_loglevel */
@@ -599,6 +601,12 @@ static u32 truncate_msg(u16 *text_len, u16 *trunc_msg_len,
 	return msg_used_size(*text_len + *trunc_msg_len, 0, pad_len);
 }
 
+#ifdef CONFIG_SEC_LOG_BUF
+static void sec_log_buf_add(const struct printk_log *msg);
+#else
+static inline void sec_log_buf_add(const struct printk_log *msg) {}
+#endif
+
 /* insert record into the buffer, discard old ones, update heads */
 static int log_store(int facility, int level,
 		     enum log_flags flags, u64 ts_nsec,
@@ -654,6 +662,8 @@ static int log_store(int facility, int level,
 	/* insert message */
 	log_next_idx += msg->len;
 	log_next_seq++;
+
+	sec_log_buf_add(msg);
 
 	return msg->text_len;
 }
@@ -3357,5 +3367,37 @@ void kmsg_dump_rewind(struct kmsg_dumper *dumper)
 	logbuf_unlock_irqrestore(flags);
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_rewind);
+
+#endif
+
+#ifdef CONFIG_SEC_LOG_BUF
+/* Called with logbuf_lock held */
+static void sec_log_buf_add(const struct printk_log *msg)
+{
+	static char tmp[LOG_LINE_MAX + PREFIX_MAX];
+	size_t size;
+
+	size = msg_print_text(msg, true, tmp, sizeof(tmp));
+	sec_log_buf_write(tmp, size);
+}
+
+void __init sec_log_buf_pull_early_buffer(bool *init_done)
+{
+	u32 current_idx = log_first_idx;
+	struct printk_log *msg;
+	unsigned long flags;
+
+	logbuf_lock_irqsave(flags);
+
+	*init_done = true;
+
+	while (current_idx != log_next_idx) {
+		msg = log_from_idx(current_idx);
+		sec_log_buf_add(msg);
+		current_idx = log_next(current_idx);
+	}
+
+	logbuf_unlock_irqrestore(flags);
+}
 
 #endif

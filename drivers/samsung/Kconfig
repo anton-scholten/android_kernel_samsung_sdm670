@@ -46,3 +46,11 @@ config SEC_GTS4LV_USA_PROJECT
 	bool "LTE USA"
 
 endchoice
+
+config SEC_LOG_BUF
+	bool "Samsung sec_log kernel log buffer"
+	help
+	  Mirrors the kernel log into the bootloader provided sec_log
+	  buffer (sec_log=SIZE@ADDR on the cmdline). It survives resets,
+	  is included in upload mode dumps and the previous boot's copy
+	  is exposed as /proc/last_kmsg.
