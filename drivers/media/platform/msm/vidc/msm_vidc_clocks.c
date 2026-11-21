@@ -1360,10 +1360,16 @@ int msm_vidc_decide_core_and_power_mode(struct msm_vidc_inst *inst)
 				inst->clk_data.core_id);
 		msm_vidc_move_core_to_power_save_mode(core, min_lp_core_id);
 	} else {
-		rc = -EINVAL;
-		dprintk(VIDC_ERR,
-			"Sorry ... Core Can't support this load\n");
-		return rc;
+		/*
+		 * Like the overload checks in msm_vidc_common.c, don't reject
+		 * the session: the load estimate is conservative (4K60 decodes
+		 * in real time at the SKU's max clock), run it at max clock.
+		 */
+		inst->clk_data.core_id = min_core_id;
+		dprintk(VIDC_WARN,
+			"Load above estimate, running at max clock : Core ID = %d\n",
+				inst->clk_data.core_id);
+		msm_vidc_power_save_mode_enable(inst, false);
 	}
 
 decision_done:
