@@ -31501,6 +31501,149 @@ static void snd_soc_dapm_add_routes_aux_pcm(struct snd_soc_component *component)
 #endif
 
 /* Not used but frame seems to require it */
+/*
+ * Samsung SoundBooster ADSP module, used by the stock audio HAL to split
+ * offload/FM and ringtone playback across the four speaker amps.
+ */
+#define ADM_MODULE_ID_PP_SB			0x10001f01
+#define ADM_PARAM_ID_PP_SB_ROTATION_PARAM	0x10001f02
+#define ADM_PARAM_ID_PP_SB_PARAM		0x10001f04
+
+enum {
+	SEC_SB_FUNC_ENABLE = 1,
+	SEC_SB_FUNC_ROTATION,
+};
+
+enum {
+	SEC_SB_DISABLE = 0,
+	SEC_SB_OFFLOAD,
+	SEC_SB_RINGTONE,
+};
+
+static bool sec_sb_is_target_fe(int fe_id, int func, int value)
+{
+	bool offload = fe_id == MSM_FRONTEND_DAI_MULTIMEDIA4 ||
+		       fe_id == MSM_FRONTEND_DAI_MULTIMEDIA6;
+	bool ringtone = fe_id == MSM_FRONTEND_DAI_MULTIMEDIA11;
+
+	if (func == SEC_SB_FUNC_ROTATION)
+		return fe_id == MSM_FRONTEND_DAI_MULTIMEDIA4;
+
+	switch (value) {
+	case SEC_SB_DISABLE:
+		return offload || ringtone;
+	case SEC_SB_OFFLOAD:
+		return offload;
+	case SEC_SB_RINGTONE:
+		return ringtone;
+	default:
+		return false;
+	}
+}
+
+static int sec_sb_get_amp_port_id(void)
+{
+	static int port_id = -1;
+	struct device_node *np;
+	u32 val;
+
+	if (port_id >= 0)
+		return port_id;
+
+	np = of_find_compatible_node(NULL, NULL, "samsung,q6audio-adaptation");
+	if (!np)
+		return -ENODEV;
+
+	if (!of_property_read_u32(np, "adaptation,amp-rx-port-id", &val))
+		port_id = val;
+	of_node_put(np);
+
+	return port_id >= 0 ? port_id : -EINVAL;
+}
+
+static int sec_sb_set_param(int func, u32 param_id, u32 value)
+{
+	struct param_hdr_v3 param_hdr = {
+		.module_id = ADM_MODULE_ID_PP_SB,
+		.instance_id = INSTANCE_ID_0,
+		.param_id = param_id,
+		.param_size = sizeof(value),
+	};
+	int port_id, be_idx, fe_id, copp_idx, ret;
+	unsigned long copp;
+
+	port_id = sec_sb_get_amp_port_id();
+	if (port_id < 0)
+		return port_id;
+
+	if (q6audio_validate_port(port_id) < 0)
+		return -EINVAL;
+
+	for (be_idx = 0; be_idx < MSM_BACKEND_DAI_MAX; be_idx++) {
+		if (msm_bedais[be_idx].port_id == port_id)
+			break;
+	}
+	if (be_idx >= MSM_BACKEND_DAI_MAX)
+		return -EINVAL;
+
+	mutex_lock(&routing_lock);
+	for_each_set_bit(fe_id, &msm_bedais[be_idx].fe_sessions[0],
+			 MSM_FRONTEND_DAI_MM_SIZE) {
+		if (!sec_sb_is_target_fe(fe_id, func, value))
+			continue;
+
+		copp = session_copp_map[fe_id][SESSION_TYPE_RX][be_idx];
+		for_each_set_bit(copp_idx, &copp, MAX_COPPS_PER_PORT) {
+			ret = adm_pack_and_set_one_pp_param(port_id, copp_idx,
+							    param_hdr,
+							    (u8 *)&value);
+			mutex_unlock(&routing_lock);
+			if (ret)
+				pr_err("%s: failed to set param 0x%x: %d\n",
+				       __func__, param_id, ret);
+			return ret;
+		}
+	}
+	mutex_unlock(&routing_lock);
+
+	/* No matching stream is active, nothing to do. */
+	return 0;
+}
+
+static int sec_sb_enable_get(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int sec_sb_enable_put(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	return sec_sb_set_param(SEC_SB_FUNC_ENABLE, ADM_PARAM_ID_PP_SB_PARAM,
+				ucontrol->value.integer.value[0]);
+}
+
+static int sec_sb_rotation_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int sec_sb_rotation_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	return sec_sb_set_param(SEC_SB_FUNC_ROTATION,
+				ADM_PARAM_ID_PP_SB_ROTATION_PARAM,
+				ucontrol->value.integer.value[0]);
+}
+
+static const struct snd_kcontrol_new sec_sb_controls[] = {
+	SOC_SINGLE_MULTI_EXT("SB enable", SND_SOC_NOPM, 0, 65535, 0, 1,
+			     sec_sb_enable_get, sec_sb_enable_put),
+	SOC_SINGLE_MULTI_EXT("SB rotation", SND_SOC_NOPM, 0, 65535, 0, 1,
+			     sec_sb_rotation_get, sec_sb_rotation_put),
+};
+
 static int msm_routing_probe(struct snd_soc_component *component)
 {
 	snd_soc_dapm_new_controls(&component->dapm, msm_qdsp6_widgets,
@@ -31601,6 +31744,8 @@ static int msm_routing_probe(struct snd_soc_component *component)
 				      ARRAY_SIZE(pll_clk_drift_controls));
 	snd_soc_add_component_controls(component, mclk_src_controls,
 				      ARRAY_SIZE(mclk_src_controls));
+	snd_soc_add_component_controls(component, sec_sb_controls,
+				      ARRAY_SIZE(sec_sb_controls));
 
 	return 0;
 }
