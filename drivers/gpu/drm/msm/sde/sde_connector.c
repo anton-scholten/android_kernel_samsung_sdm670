@@ -23,6 +23,7 @@
 #include "dsi_display.h"
 #include "sde_crtc.h"
 #include "sde_rm.h"
+#include <linux/msm_drm_notify.h>
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 #include "ss_dsi_panel_common.h"
@@ -463,6 +464,32 @@ void sde_connector_schedule_status_work(struct drm_connector *connector,
 	}
 }
 
+/* Tell blank notifier clients (touch) when the panel enters or leaves doze */
+static void _sde_connector_notify_lp(struct drm_connector *connector,
+		int old_mode, int new_mode)
+{
+	struct msm_drm_notifier notifier_data;
+	int blank;
+	bool old_lp = old_mode == SDE_MODE_DPMS_LP1 ||
+		old_mode == SDE_MODE_DPMS_LP2;
+	bool new_lp = new_mode == SDE_MODE_DPMS_LP1 ||
+		new_mode == SDE_MODE_DPMS_LP2;
+
+	if (old_mode == SDE_MODE_DPMS_ON && new_lp)
+		blank = MSM_DRM_BLANK_LP;
+	else if (old_lp && new_mode == SDE_MODE_DPMS_ON)
+		blank = MSM_DRM_BLANK_UNBLANK;
+	else
+		return;
+
+	notifier_data.data = &blank;
+	notifier_data.id = 0;
+	if (blank == MSM_DRM_BLANK_UNBLANK)
+		msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK,
+				&notifier_data);
+	msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notifier_data);
+}
+
 static int _sde_connector_update_power_locked(struct sde_connector *c_conn)
 {
 	struct drm_connector *connector;
@@ -510,6 +537,9 @@ static int _sde_connector_update_power_locked(struct sde_connector *c_conn)
 
 		mutex_unlock(&c_conn->lock);
 		rc = set_power(connector, mode, display);
+		if (!rc)
+			_sde_connector_notify_lp(connector,
+					c_conn->last_panel_power_mode, mode);
 		mutex_lock(&c_conn->lock);
 	}
 	c_conn->last_panel_power_mode = mode;

@@ -800,6 +800,7 @@ void msm_fbdev_free(struct drm_device *dev);
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 int __msm_drm_notifier_call_chain(unsigned long event, void *data);
+int msm_drm_notifier_call_chain(unsigned long val, void *v);
 #endif
 struct hdmi;
 #ifdef CONFIG_DRM_MSM_HDMI
