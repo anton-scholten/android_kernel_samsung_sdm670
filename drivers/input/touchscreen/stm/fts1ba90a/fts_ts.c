@@ -130,8 +130,13 @@ static int dsi_panel_notifier_callback(struct notifier_block *self,
 		if (blank == DRM_PANEL_BLANK_UNBLANK)
 			fts_start_device(info);
 	} else if (event == DRM_PANEL_EVENT_BLANK) {
-		if (blank == DRM_PANEL_BLANK_POWERDOWN)
-			fts_stop_device(info, info->lowpower_flag);
+		if (blank != DRM_PANEL_BLANK_POWERDOWN &&
+				blank != DRM_PANEL_BLANK_LP)
+			return 0;
+		/* LP -> off: already in low power mode */
+		if (info->fts_power_state == FTS_POWER_STATE_LOWPOWER)
+			return 0;
+		fts_stop_device(info, info->lowpower_flag);
 	}
 
 	return 0;
