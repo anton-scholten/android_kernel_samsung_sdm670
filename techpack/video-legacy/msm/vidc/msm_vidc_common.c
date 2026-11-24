@@ -3617,24 +3617,18 @@ static int msm_vidc_load_resources(int flipped_state,
                 return -ENOMEM;
         }
 
-	if (video_load > max_video_load) {
-		s_vpr_e(inst->sid,
-			"H/W is overloaded. needed: %d max: %d, hence adjusting core load\n",
-			video_load, max_video_load);
-		msm_vidc_print_running_insts(inst->core);
-		inst->adjust_core_load = true;
-		inst->supported = false;
-		return -ENOMEM;
-	}
-
-	if (video_load + image_load > max_video_load + max_image_load) {
+	/*
+	 * The load estimate is conservative: the SKU 1 core decodes 4K60 in
+	 * real time at max clock. Run the session with adjusted core load
+	 * instead of failing it.
+	 */
+	if (video_load > max_video_load ||
+	    video_load + image_load > max_video_load + max_image_load) {
 		s_vpr_e(inst->sid,
 			"H/W is overloaded. needed: [video + image][%d + %d], max: [video + image][%d + %d], hence adjusting core load\n",
 			video_load, image_load, max_video_load, max_image_load);
 		msm_vidc_print_running_insts(inst->core);
 		inst->adjust_core_load = true;
-		inst->supported = false;
-		return -ENOMEM;
 	}
 
 	hdev = core->device;
@@ -6102,25 +6096,15 @@ static int msm_vidc_check_mbps_supported(struct msm_vidc_inst *inst)
 			return -EBUSY;
                 }
 
-		if (video_load > max_video_load) {
-			s_vpr_e(inst->sid,
-				"H/W is overloaded. needed: %d max: %d hence adjusting core load\n",
-				video_load, max_video_load);
-			msm_vidc_print_running_insts(inst->core);
-			inst->adjust_core_load = true;
-			inst->supported = false;
-			return -EBUSY;
-		}
-
-		if (video_load + image_load > max_video_load + max_image_load) {
+		/* See msm_vidc_load_resources() */
+		if (video_load > max_video_load ||
+		    video_load + image_load > max_video_load + max_image_load) {
 			s_vpr_e(inst->sid,
 				"H/W is overloaded. needed: [video + image][%d + %d], max: [video + image][%d + %d], hence adjusting core load\n",
 				video_load, image_load,
 				max_video_load, max_image_load);
 			msm_vidc_print_running_insts(inst->core);
 			inst->adjust_core_load = true;
-			inst->supported = false;
-			return -EBUSY;
 		}
 	}
 
